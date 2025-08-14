@@ -1,36 +1,147 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Purwakarta Map Dashboard
+
+A modern, interactive map dashboard built with Next.js, React, and Leaflet for displaying Purwakarta administrative and existing data layers.
+
+## Features
+
+### 🗺️ Interactive Map Interface
+- **Leaflet-based map** with OpenStreetMap tiles
+- **Multiple GeoJSON layers** support
+- **Coordinate transformation** from projected to WGS84
+- **Feature highlighting** on hover and click
+- **Responsive design** with Tailwind CSS
+
+### 📊 Layer Management
+- **Peta Administratif** (Administrative Map)
+  - Data (18MB)
+  - KRB Gempa Bumi (6.1MB)
+  - Kemiringan Lereng (10MB)
+  - Kawasan Terbangun (90MB)
+  - Rencana Pola Ruang (45MB)
+
+- **Peta Existing** (Existing Map)
+  - Existing Data
+  - Existing KRB
+  - Existing Slope
+  - Existing Built Area
+  - Existing Plan
+
+### 🎨 Visual Features
+- **Color-coded layers** based on property values
+- **Interactive legend** showing layer color schemes
+- **Feature property drawer** for detailed information
+- **Layer toggle controls** with checkboxes
+- **Status indicators** for loading and selection
+
+### 🏗️ Technical Stack
+- **Next.js 15** with App Router
+- **React 19** with TypeScript
+- **Leaflet** for map functionality
+- **Tailwind CSS** for styling
+- **Lucide React** for icons
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
 
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd map-purwakarta-nextjs
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Run the development server:
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Learn More
+### Building for Production
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── api/                    # API routes
+│   │   ├── data/              # Data endpoint
+│   │   └── tiles/[z]/[x]/[y]/ # Tile endpoint
+│   ├── globals.css            # Global styles
+│   ├── layout.tsx             # Root layout
+│   └── page.tsx               # Main page
+├── components/
+│   ├── FeatureDrawer.tsx      # Feature property panel
+│   ├── Legend.tsx             # Map legend component
+│   ├── Map.tsx                # Main map component
+│   └── Sidebar.tsx            # Layer control sidebar
+└── lib/                       # Utility functions
+```
 
-## Deploy on Vercel
+## API Endpoints
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### `/api/data`
+Returns map configuration data including tile URLs and bounds.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### `/api/tiles/[z]/[x]/[y]`
+Handles vector tile requests (placeholder implementation).
+
+## Data Files
+
+The application uses GeoJSON files stored in the `public/data/` directory:
+- `data.geojson` - Main administrative data
+- `krb_gempa_bumi.geojson` - Earthquake risk zones
+- `kemiringan_lereng.geojson` - Slope data
+- `kawasan_terbangun.geojson` - Built-up areas
+- `rencana_pola_ruang.geojson` - Spatial planning
+
+## Usage
+
+1. **Select Layers**: Use the sidebar to expand menu categories and select layers
+2. **View Map**: Selected layers will appear on the map with color coding
+3. **Interact**: Click on features to view their properties in the drawer
+4. **Legend**: Toggle the legend to see color schemes for active layers
+5. **Controls**: Use "Clear All Layers" or "Load All Layers" for bulk operations
+
+## Development
+
+### Key Components
+
+- **Sidebar**: Manages layer selection and menu state
+- **Map**: Handles map rendering and layer management
+- **LayerController**: Manages GeoJSON layer loading and styling
+- **FeatureDrawer**: Displays feature properties when clicked
+- **Legend**: Shows color schemes for active layers
+
+### Adding New Layers
+
+1. Add layer configuration to `layerConfigs` in `Map.tsx`
+2. Update the sidebar menu items in `Sidebar.tsx`
+3. Add corresponding GeoJSON file to `public/data/`
+4. Update legend configuration if needed
+
+## License
+
+This project is licensed under the MIT License.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request

@@ -24,3 +24,56 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Custom styles for polygon labels */
+.polygon-label {
+  background: transparent !important;
+  border: none !important;
+}
+
+.polygon-label div {
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+/* Animation for drawer */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Custom scrollbar for drawer */
+.drawer-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
