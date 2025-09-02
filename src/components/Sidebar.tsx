@@ -35,13 +35,33 @@ export default function Sidebar({
   const kecamatanRef = useRef<HTMLDivElement>(null);
   const kelurahanRef = useRef<HTMLDivElement>(null);
 
-  // Layer configurations matching the image
+  // Layer configurations
   const layerConfigs = {
     'layer-administrasi': {
       name: 'Layer Administrasi',
       checked: true
+    },
+    'layer-sebaran-rumah-komersil': {
+      name: 'Layer Sebaran Rumah Komersil',
+      checked: false
+    },
+    'layer-kawasan-lahan-terbangun': {
+      name: 'Layer Kawasan Lahan Terbangun',
+      checked: false
+    },
+    'layer-kawasan-rawan-bencana': {
+      name: 'Layer Kawasan Rawan Bencana',
+      checked: false
+    },
+    'layer-kawasan-rencana-pola-ruang': {
+      name: 'Layer Kawasan Rencana Pola Ruang',
+      checked: false
+    },
+    'layer-kemiringan-lereng': {
+      name: 'Layer Kemiringan Lereng',
+      checked: false
     }
-  };
+  } as const;
 
   // Mock data for dropdowns - using actual values from GeoJSON
   const kecamatanList = [

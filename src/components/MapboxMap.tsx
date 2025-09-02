@@ -16,12 +16,13 @@ interface MapboxMapProps {
   setShowBaseMap: (show: boolean) => void;
   selectedKecamatan: string;
   selectedKelurahan: string;
+  uploadedLayers?: Array<{ id: string; name: string; data: any }>;
 }
 
 interface LayerConfig {
   id: string;
   name: string;
-  url: string;
+  url: string | string[];
   color: string;
   outlineColor: string;
 }
@@ -33,6 +34,46 @@ const layerConfigs: { [key: string]: LayerConfig } = {
     url: '/new data/layer_administrasi.geojson',
     color: '#4a90e2',
     outlineColor: '#2c5aa0'
+  },
+  'layer-sebaran-rumah-komersil': {
+    id: 'layer-sebaran-rumah-komersil',
+    name: 'Sebaran Rumah Komersil',
+    url: '/new data/rumah_komersil.geojson',
+    color: '#e67e22',
+    outlineColor: '#a95a17'
+  },
+  'layer-kawasan-lahan-terbangun': {
+    id: 'layer-kawasan-lahan-terbangun',
+    name: 'Kawasan Lahan Terbangun',
+    url: '/data/kawasan_terbangun.geojson',
+    color: '#16a085',
+    outlineColor: '#0e6f5c'
+  },
+  'layer-kawasan-rawan-bencana': {
+    id: 'layer-kawasan-rawan-bencana',
+    name: 'Kawasan Rawan Bencana',
+    // Map to available datasets; missing ones will be skipped gracefully
+    url: [
+      '/data/krb_gempa_bumi.geojson',
+      '/data/layer_kawasan_rawan_bencana_gerakan_tanah.geojson',
+      '/data/layer_kawasan_renacan_banjir.geojson'
+    ],
+    color: '#c0392b',
+    outlineColor: '#7e261d'
+  },
+  'layer-kawasan-rencana-pola-ruang': {
+    id: 'layer-kawasan-rencana-pola-ruang',
+    name: 'Kawasan Rencana Pola Ruang',
+    url: '/data/rencana_pola_ruang.geojson',
+    color: '#8e44ad',
+    outlineColor: '#5e2e73'
+  },
+  'layer-kemiringan-lereng': {
+    id: 'layer-kemiringan-lereng',
+    name: 'Kemiringan Lereng',
+    url: '/data/kemiringan_lereng.geojson',
+    color: '#27ae60',
+    outlineColor: '#1c7a43'
   }
 };
 
@@ -43,7 +84,8 @@ export default function MapboxMap({
   showBaseMap,
   setShowBaseMap,
   selectedKecamatan,
-  selectedKelurahan
+  selectedKelurahan,
+  uploadedLayers = []
 }: MapboxMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -280,17 +322,20 @@ export default function MapboxMap({
 
           // Get the unique identifier for the feature
           const props = clickedFeature.properties as Record<string, any>;
-          const featureId = props.OBJECTID || `${props.WADMKC}-${props.WADMKD}`;
+          const fallbackConcat = (props?.WADMKC || props?.WADMKD) ? `${props?.WADMKC || ''}-${props?.WADMKD || ''}` : null;
+          const featureId = props.OBJECTID ?? props.id ?? clickedFeature.id ?? fallbackConcat;
           
           // Set filter to highlight only the selected feature
           const highlightedLayer = `${layerId}-highlighted`;
           const highlightedOutlineLayer = `${layerId}-highlighted-outline`;
           
-          if (map.current.getLayer(highlightedLayer)) {
-            map.current.setFilter(highlightedLayer, ['==', 'OBJECTID', featureId]);
-          }
-          if (map.current.getLayer(highlightedOutlineLayer)) {
-            map.current.setFilter(highlightedOutlineLayer, ['==', 'OBJECTID', featureId]);
+          if (featureId != null) {
+            if (map.current.getLayer(highlightedLayer)) {
+              map.current.setFilter(highlightedLayer, ['==', 'OBJECTID', featureId]);
+            }
+            if (map.current.getLayer(highlightedOutlineLayer)) {
+              map.current.setFilter(highlightedOutlineLayer, ['==', 'OBJECTID', featureId]);
+            }
           }
           
           // Store the selected feature
@@ -384,6 +429,63 @@ export default function MapboxMap({
     });
   }, [mapReady, selectedLayers]);
 
+  // Render uploaded GeoJSON layers dynamically
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+
+    uploadedLayers.forEach((u) => {
+      const layerId = u.id;
+      if (map.current!.getSource(layerId)) return;
+
+      try {
+        map.current!.addSource(layerId, { type: 'geojson', data: u.data });
+
+        // Simple styling: polygons filled, lines stroked, points circles
+        const hasPolygons = (u.data.features || []).some((f: any) => f.geometry?.type?.includes('Polygon'));
+        const hasLines = (u.data.features || []).some((f: any) => f.geometry?.type?.includes('Line'));
+        const hasPoints = (u.data.features || []).some((f: any) => f.geometry?.type === 'Point' || f.geometry?.type === 'MultiPoint');
+
+        if (hasPolygons) {
+          map.current!.addLayer({
+            id: `${layerId}-fill`,
+            type: 'fill',
+            source: layerId,
+            paint: {
+              'fill-color': '#ff6b6b',
+              'fill-opacity': 0.4
+            }
+          });
+          map.current!.addLayer({
+            id: `${layerId}-outline`,
+            type: 'line',
+            source: layerId,
+            paint: { 'line-color': '#c0392b', 'line-width': 2 }
+          });
+        }
+
+        if (hasLines) {
+          map.current!.addLayer({
+            id: `${layerId}-line`,
+            type: 'line',
+            source: layerId,
+            paint: { 'line-color': '#2980b9', 'line-width': 3 }
+          });
+        }
+
+        if (hasPoints) {
+          map.current!.addLayer({
+            id: `${layerId}-circle`,
+            type: 'circle',
+            source: layerId,
+            paint: { 'circle-radius': 5, 'circle-color': '#27ae60', 'circle-stroke-width': 1, 'circle-stroke-color': '#145a32' }
+          });
+        }
+      } catch (e) {
+        // ignore duplicate add errors
+      }
+    });
+  }, [mapReady, uploadedLayers]);
+
   // Handle camera movement for selected administrative areas
   useEffect(() => {
     if (!map.current || !selectedKecamatan) return;
@@ -457,41 +559,182 @@ export default function MapboxMap({
     setLoading(prev => ({ ...prev, [layerId]: true }));
 
     try {
-      const response = await fetch(config.url);
-      const data = await response.json();
+      let data: any = null;
+      if (Array.isArray(config.url)) {
+        // Special handling for multi-source layers: build separate sublayers per source
+        const results = await Promise.all(
+          config.url.map(async (u) => {
+            try {
+              const res = await fetch(u);
+              if (!res.ok) return { url: u, data: null };
+              const json = await res.json();
+              return { url: u, data: json };
+            } catch {
+              return { url: u, data: null };
+            }
+          })
+        );
+
+        // Color and label per known hazard type inferred from URL
+        const styleForUrl = (u: string) => {
+          const lower = u.toLowerCase();
+          if (lower.includes('gempa')) {
+            return { fill: '#2980b9', outline: '#1c5a80', label: 'Rawan bencana gempa bumi' };
+          }
+          if (lower.includes('gerakan_tanah') || lower.includes('gerakan-tanah')) {
+            return { fill: '#8e6b3a', outline: '#6b4f2a', label: 'Rawan bencana gerakan tanah' };
+          }
+          if (lower.includes('banjir')) {
+            return { fill: '#e74c3c', outline: '#a83226', label: 'Rawan bencana banjir' };
+          }
+          return { fill: config.color, outline: config.outlineColor, label: 'Kawasan rawan bencana' };
+        };
+
+        for (const item of results) {
+          if (!item || !item.data) continue;
+          const subId = `${layerId}-${item.url.split('/').pop()!.replace(/\.[^/.]+$/, '')}`;
+
+          // Add sub source
+          if (!map.current!.getSource(subId)) {
+            map.current!.addSource(subId, { type: 'geojson', data: item.data });
+          }
+
+          const style = styleForUrl(item.url);
+
+          // Add polygon fill if present
+          const hasPolygons = (item.data.features || []).some((f: any) => f.geometry?.type?.includes('Polygon'));
+          if (hasPolygons && !map.current!.getLayer(`${subId}-fill`)) {
+            map.current!.addLayer({
+              id: `${subId}-fill`,
+              type: 'fill',
+              source: subId,
+              paint: { 'fill-color': style.fill, 'fill-opacity': 0.35 }
+            });
+          }
+          if (hasPolygons && !map.current!.getLayer(`${subId}-outline`)) {
+            map.current!.addLayer({
+              id: `${subId}-outline`,
+              type: 'line',
+              source: subId,
+              paint: { 'line-color': style.outline, 'line-width': 2 }
+            });
+          }
+
+          // Add line styling if lines present
+          const hasLines = (item.data.features || []).some((f: any) => f.geometry?.type?.includes('Line'));
+          if (hasLines && !map.current!.getLayer(`${subId}-line`)) {
+            map.current!.addLayer({
+              id: `${subId}-line`,
+              type: 'line',
+              source: subId,
+              paint: { 'line-color': style.outline, 'line-width': 3 }
+            });
+          }
+
+          // Create centered label for the dataset
+          const labelFeatures: GeoJSON.Feature[] = (item.data.features || [])
+            .map((feature: any) => {
+              const geom = feature?.geometry;
+              if (!geom) return null as any;
+              // Only label polygonal features for center placement
+              if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+                const center = getPolygonCenter(geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates);
+                if (center && Array.isArray(center) && center.length === 2) {
+                  return {
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: center },
+                    properties: { label: style.label }
+                  } as GeoJSON.Feature;
+                }
+              }
+              return null as any;
+            })
+            .filter(Boolean);
+
+          const labelSourceId = `${subId}-labels`;
+          const labelData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: labelFeatures };
+          const existingLabelSource = map.current!.getSource(labelSourceId) as mapboxgl.GeoJSONSource | undefined;
+          if (existingLabelSource && typeof existingLabelSource.setData === 'function') {
+            existingLabelSource.setData(labelData as any);
+          } else if (!existingLabelSource) {
+            map.current!.addSource(labelSourceId, { type: 'geojson', data: labelData });
+          }
+
+          const subLabelLayer = `${subId}-labels-symbol`;
+          if (!map.current!.getLayer(subLabelLayer)) {
+            map.current!.addLayer({
+              id: subLabelLayer,
+              type: 'symbol',
+              source: labelSourceId,
+              layout: {
+                'text-field': ['get', 'label'],
+                'text-size': 12,
+                'text-font': ['Open Sans Bold'],
+                'text-anchor': 'center'
+              },
+              paint: {
+                'text-color': '#111111',
+                'text-halo-color': '#ffffff',
+                'text-halo-width': 2
+              }
+            });
+          }
+        }
+
+        // Store umbrella layer presence
+        setLayers(prev => ({ ...prev, [layerId]: { source: layerId, config } }));
+        return; // do not proceed with generic single-source flow
+      } else {
+        const response = await fetch(config.url);
+        data = await response.json();
+      }
 
       if (map.current) {
+        // Ensure interactive identifier exists for hover/click filters
+        if (data && Array.isArray(data.features)) {
+          data.features = data.features.map((f: any, idx: number) => {
+            if (!f.properties) f.properties = {};
+            if (typeof f.properties.OBJECTID === 'undefined' || f.properties.OBJECTID === null) {
+              f.properties.OBJECTID = idx + 1;
+            }
+            return f;
+          });
+        }
+
         // Add source
         map.current.addSource(layerId, {
           type: 'geojson',
           data: data
         });
 
-        // Build a deterministic color map per Kelurahan/Desa (WADMKD)
-        const uniqueKelurahan: string[] = Array.from(
-          new Set(
-            (data.features || [])
-              .map((f: any) => f?.properties?.WADMKD)
-              .filter((v: any) => typeof v === 'string' && v.length > 0)
-          )
-        );
+        // If data has WADMKD, create a deterministic color map; else use uniform color
+        let fillPaint: any = {
+          'fill-color': config.color,
+          'fill-opacity': 0.3
+        };
+        const hasWADMKD = (data.features || []).some((f: any) => typeof f?.properties?.WADMKD === 'string');
+        if (hasWADMKD) {
+          const uniqueKelurahan: string[] = Array.from(
+            new Set(
+              (data.features || [])
+                .map((f: any) => f?.properties?.WADMKD)
+                .filter((v: any) => typeof v === 'string' && v.length > 0)
+            )
+          );
+          const matchExpr: any[] = ['match', ['get', 'WADMKD']];
+          uniqueKelurahan.forEach((name) => {
+            matchExpr.push(name, colorFromString(name));
+          });
+          matchExpr.push(config.color);
+          fillPaint = { 'fill-color': matchExpr as any, 'fill-opacity': 0.3 };
+        }
 
-        // Create a Mapbox match expression: match(get('WADMKD'), 'Name1', '#hex1', ..., defaultColor)
-        const fillColorExpression: any[] = ['match', ['get', 'WADMKD']];
-        uniqueKelurahan.forEach((name) => {
-          fillColorExpression.push(name, colorFromString(name));
-        });
-        fillColorExpression.push(config.color); // default fallback
-
-        // Add fill layer with per-desa color
+        // Add fill layer
         map.current.addLayer({
           id: `${layerId}-fill`,
           type: 'fill',
           source: layerId,
-          paint: {
-            'fill-color': fillColorExpression as any,
-            'fill-opacity': 0.3
-          }
+          paint: fillPaint
         });
 
         // Add outline layer
@@ -553,6 +796,18 @@ export default function MapboxMap({
           filter: ['==', 'OBJECTID', ''] // Initially no features shown
         });
 
+        // Ensure rumah komersil sits above administrasi
+        if (layerId === 'layer-sebaran-rumah-komersil') {
+          try {
+            if (map.current.getLayer(`${layerId}-outline`)) map.current.moveLayer(`${layerId}-outline`);
+            if (map.current.getLayer(`${layerId}-fill`)) map.current.moveLayer(`${layerId}-fill`);
+            if (map.current.getLayer(`${layerId}-highlighted-outline`)) map.current.moveLayer(`${layerId}-highlighted-outline`);
+            if (map.current.getLayer(`${layerId}-highlighted`)) map.current.moveLayer(`${layerId}-highlighted`);
+            if (map.current.getLayer(`${layerId}-hovered-outline`)) map.current.moveLayer(`${layerId}-hovered-outline`);
+            if (map.current.getLayer(`${layerId}-hovered`)) map.current.moveLayer(`${layerId}-hovered`);
+          } catch {}
+        }
+
         // Add labels for administrative layer
         if (layerId === 'layer-administrasi') {
           addLabels(layerId, data);
@@ -583,26 +838,25 @@ export default function MapboxMap({
     if (!map.current || !layers[layerId]) return;
 
     try {
-      // Remove layers
-      if (map.current.getLayer(`${layerId}-fill`)) {
-        map.current.removeLayer(`${layerId}-fill`);
-      }
-      if (map.current.getLayer(`${layerId}-outline`)) {
-        map.current.removeLayer(`${layerId}-outline`);
-      }
-      if (map.current.getLayer(`${layerId}-highlighted`)) {
-        map.current.removeLayer(`${layerId}-highlighted`);
-      }
-      if (map.current.getLayer(`${layerId}-highlighted-outline`)) {
-        map.current.removeLayer(`${layerId}-highlighted-outline`);
-      }
-      if (map.current.getLayer(`${layerId}-labels`)) {
-        map.current.removeLayer(`${layerId}-labels`);
+      // Remove any layers whose id starts with `${layerId}-`
+      const allLayers = map.current.getStyle().layers || [];
+      for (const lyr of allLayers) {
+        if (lyr.id === `${layerId}-fill` || lyr.id.startsWith(`${layerId}-`)) {
+          if (map.current.getLayer(lyr.id)) {
+            map.current.removeLayer(lyr.id);
+          }
+        }
       }
 
-      // Remove source
-      if (map.current.getSource(layerId)) {
-        map.current.removeSource(layerId);
+      // Remove sources starting with `${layerId}-` and the base source
+      const style = map.current.getStyle() as any;
+      const sources = style?.sources ? Object.keys(style.sources) : [];
+      for (const srcId of sources) {
+        if (srcId === layerId || srcId.startsWith(`${layerId}-`)) {
+          if (map.current.getSource(srcId)) {
+            try { map.current.removeSource(srcId); } catch {}
+          }
+        }
       }
 
       // Remove from layers state
@@ -643,50 +897,64 @@ export default function MapboxMap({
       }).filter(Boolean) as GeoJSON.Feature[]
     };
 
-    map.current.addSource(`${layerId}-labels`, {
-      type: 'geojson',
-      data: labelData
-    });
+    const labelSourceId = `${layerId}-labels`;
+    const existingLabelSource = map.current.getSource(labelSourceId) as mapboxgl.GeoJSONSource | undefined;
+    if (existingLabelSource) {
+      if (typeof existingLabelSource.setData === 'function') {
+        existingLabelSource.setData(labelData as any);
+      }
+    } else {
+      map.current.addSource(labelSourceId, {
+        type: 'geojson',
+        data: labelData
+      });
+    }
 
     // Add Kecamatan labels
-    map.current.addLayer({
-      id: `${layerId}-labels-kecamatan`,
-      type: 'symbol',
-      source: `${layerId}-labels`,
-      filter: ['has', 'kecamatan'],
-      layout: {
-        'text-field': ['get', 'kecamatan'],
-        'text-font': ['Open Sans Bold'],
-        'text-size': 12,
-        'text-anchor': 'center',
-        'text-offset': [0, 0]
-      },
-      paint: {
-        'text-color': '#1a1a1a',
-        'text-halo-color': '#ffffff',
-        'text-halo-width': 2
-      }
-    });
+    const kecLayerId = `${layerId}-labels-kecamatan`;
+    if (!map.current.getLayer(kecLayerId)) {
+      map.current.addLayer({
+        id: kecLayerId,
+        type: 'symbol',
+        source: `${layerId}-labels`,
+        filter: ['has', 'kecamatan'],
+        layout: {
+          'text-field': ['get', 'kecamatan'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': 12,
+          'text-anchor': 'center',
+          'text-offset': [0, 0]
+        },
+        paint: {
+          'text-color': '#1a1a1a',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        }
+      });
+    }
 
     // Add Kelurahan labels
-    map.current.addLayer({
-      id: `${layerId}-labels-kelurahan`,
-      type: 'symbol',
-      source: `${layerId}-labels`,
-      filter: ['has', 'kelurahan'],
-      layout: {
-        'text-field': ['get', 'kelurahan'],
-        'text-font': ['Open Sans Regular'],
-        'text-size': 10,
-        'text-anchor': 'center',
-        'text-offset': [0, -0.002]
-      },
-      paint: {
-        'text-color': '#666666',
-        'text-halo-color': '#ffffff',
-        'text-halo-width': 1
-      }
-    });
+    const kelLayerId = `${layerId}-labels-kelurahan`;
+    if (!map.current.getLayer(kelLayerId)) {
+      map.current.addLayer({
+        id: kelLayerId,
+        type: 'symbol',
+        source: `${layerId}-labels`,
+        filter: ['has', 'kelurahan'],
+        layout: {
+          'text-field': ['get', 'kelurahan'],
+          'text-font': ['Open Sans Regular'],
+          'text-size': 10,
+          'text-anchor': 'center',
+          'text-offset': [0, -0.002]
+        },
+        paint: {
+          'text-color': '#666666',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1
+        }
+      });
+    }
   };
 
   // Helper to get the bounding box of a GeoJSON feature

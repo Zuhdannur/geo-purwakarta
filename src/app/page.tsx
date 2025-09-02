@@ -14,6 +14,7 @@ export default function Home() {
   const [selectedKecamatan, setSelectedKecamatan] = useState<string>('All Kecamatan');
   const [selectedKelurahan, setSelectedKelurahan] = useState<string>('All Kelurahan/Desa');
   const [isClient, setIsClient] = useState(false);
+  const [uploadedLayers, setUploadedLayers] = useState<any[]>([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -45,6 +46,7 @@ export default function Home() {
         setSelectedKelurahan={setSelectedKelurahan}
       />
       <div className="flex-1 relative">
+       
         <MapboxMap 
           activeMenu={activeMenu}
           selectedLayers={selectedLayers}
@@ -53,6 +55,8 @@ export default function Home() {
           setShowBaseMap={setShowBaseMap}
           selectedKecamatan={selectedKecamatan}
           selectedKelurahan={selectedKelurahan}
+          // @ts-expect-error extend props for uploaded layers
+          uploadedLayers={uploadedLayers}
         />
       </div>
     </div>
