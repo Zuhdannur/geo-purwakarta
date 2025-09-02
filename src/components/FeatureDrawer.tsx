@@ -19,13 +19,7 @@ export default function FeatureDrawer({
 
   return (
     <>
-      {/* Enhanced Backdrop overlay - semi-transparent to see map */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-[9998] transition-all duration-500 ease-out"
-          onClick={onClose}
-        />
-      )}
+      {/* Removed backdrop overlay to keep map fully visible and interactive */}
       
       {/* Right Drawer with enhanced slide animation */}
       <div className={`fixed right-0 top-0 h-full z-[9999] transition-all duration-500 ease-out transform ${

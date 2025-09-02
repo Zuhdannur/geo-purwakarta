@@ -47,7 +47,9 @@ export default function MapboxMap({
 }: MapboxMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const hoveredRef = useRef<{ layerId: string; featureId: any } | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const mapReadyRef = useRef(false);
   const [layers, setLayers] = useState<{ [key: string]: any }>({});
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
@@ -78,25 +80,106 @@ export default function MapboxMap({
 
       map.current.on('load', () => {
         setMapReady(true);
+        mapReadyRef.current = true;
+        console.log('map loaded');
       });
 
       // Add click event for feature selection
       map.current.on('click', (e) => {
-        // Only handle clicks if map is ready and layers are loaded
-        if (mapReady && selectedLayers.length > 0) {
+        console.log('map clicked', e);
+        console.log('isStyleLoaded', map.current?.isStyleLoaded());
+        // Only handle clicks if style is loaded and layers are selected
+        if (map.current?.isStyleLoaded() && selectedLayers.length > 0) {
           handleFeatureClick(e);
         }
       });
 
-      // Add hover effects
+      // Add hover effects (cursor change + per-feature hover highlight) with safe layer checks
       map.current.on('mousemove', (e) => {
-        const features = map.current!.queryRenderedFeatures(e.point, {
-          layers: selectedLayers.map(layerId => `${layerId}-fill`)
-        });
+        if (!map.current || !map.current.isStyleLoaded()) return;
 
-        if (features.length > 0) {
-          map.current!.getCanvas().style.cursor = 'pointer';
-        } else {
+        try {
+          const availableLayers = selectedLayers
+            .map(layerId => `${layerId}-fill`)
+            .filter(layerName => map.current!.getLayer(layerName));
+
+          if (availableLayers.length === 0) {
+            // Clear previous hover highlight if any
+            if (hoveredRef.current) {
+              const prev = hoveredRef.current;
+              if (map.current.getLayer(`${prev.layerId}-hovered`)) {
+                map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
+              }
+              if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
+                map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
+              }
+              hoveredRef.current = null;
+            }
+            map.current!.getCanvas().style.cursor = '';
+            return;
+          }
+
+          const features = map.current!.queryRenderedFeatures(e.point, {
+            layers: availableLayers
+          });
+
+          if (features.length > 0) {
+            const hovered = features[0] as any;
+            if (!hovered || !hovered.layer || !hovered.properties) {
+              return;
+            }
+
+            // Determine base layer id
+            let layerId = hovered.layer.id as string;
+            if (layerId.includes('-fill')) layerId = layerId.replace('-fill', '');
+            else if (layerId.includes('-outline')) layerId = layerId.replace('-outline', '');
+            else if (layerId.includes('-highlighted')) layerId = layerId.replace('-highlighted', '');
+            else if (layerId.includes('-hovered')) layerId = layerId.replace('-hovered', '');
+
+            const props = hovered.properties as Record<string, any>;
+            const featureId = props.OBJECTID || `${props.WADMKC}-${props.WADMKD}`;
+
+            // Skip if this feature is the same as currently hovered
+            if (!hoveredRef.current || hoveredRef.current.layerId !== layerId || hoveredRef.current.featureId !== featureId) {
+              // Clear previous hover if different
+              if (hoveredRef.current) {
+                const prev = hoveredRef.current;
+                if (map.current.getLayer(`${prev.layerId}-hovered`)) {
+                  map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
+                }
+                if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
+                  map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
+                }
+              }
+
+              // Apply hover filters on current layer if present
+              if (map.current.getLayer(`${layerId}-hovered`)) {
+                map.current.setFilter(`${layerId}-hovered`, ['==', 'OBJECTID', featureId]);
+              }
+              if (map.current.getLayer(`${layerId}-hovered-outline`)) {
+                map.current.setFilter(`${layerId}-hovered-outline`, ['==', 'OBJECTID', featureId]);
+              }
+
+              hoveredRef.current = { layerId, featureId };
+            }
+
+            map.current!.getCanvas().style.cursor = 'pointer';
+          } else {
+            // Clear previous hover highlight when no feature under cursor
+            if (hoveredRef.current) {
+              const prev = hoveredRef.current;
+              if (map.current.getLayer(`${prev.layerId}-hovered`)) {
+                map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
+              }
+              if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
+                map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
+              }
+              hoveredRef.current = null;
+            }
+            map.current!.getCanvas().style.cursor = '';
+          }
+        } catch (err) {
+          // If querying fails for any reason, ensure cursor resets and don't throw
           map.current!.getCanvas().style.cursor = '';
         }
       });
@@ -125,7 +208,7 @@ export default function MapboxMap({
 
   // Handle feature click and highlighting using Mapbox filters
   const handleFeatureClick = (e: any) => {
-    if (!map.current || !mapReady || selectedLayers.length === 0) {
+    if (!map.current || !map.current.isStyleLoaded() || selectedLayers.length === 0) {
       console.log('Map not ready or no layers selected');
       return;
     }
@@ -164,10 +247,13 @@ export default function MapboxMap({
       }
 
               if (selectedFeatures.length > 0) {
-          const clickedFeature = selectedFeatures[0];
+          const clickedFeature = selectedFeatures[0] as any;
+          if (!clickedFeature || !clickedFeature.layer || !clickedFeature.properties) {
+            return;
+          }
           
           // Extract layer ID more robustly
-          let layerId = clickedFeature.layer.id;
+          let layerId = clickedFeature.layer.id as string;
           if (layerId.includes('-fill')) {
             layerId = layerId.replace('-fill', '');
           } else if (layerId.includes('-outline')) {
@@ -193,8 +279,8 @@ export default function MapboxMap({
           }
 
           // Get the unique identifier for the feature
-          const featureId = clickedFeature.properties.OBJECTID || 
-                           `${clickedFeature.properties.WADMKC}-${clickedFeature.properties.WADMKD}`;
+          const props = clickedFeature.properties as Record<string, any>;
+          const featureId = props.OBJECTID || `${props.WADMKC}-${props.WADMKD}`;
           
           // Set filter to highlight only the selected feature
           const highlightedLayer = `${layerId}-highlighted`;
@@ -217,7 +303,7 @@ export default function MapboxMap({
           // Open the feature drawer
           setFeatureDrawer({
             isOpen: true,
-            featureData: clickedFeature.properties,
+            featureData: props,
             layerName: config.name
           });
         }
@@ -242,6 +328,41 @@ export default function MapboxMap({
       return `#${darkerR.toString(16).padStart(2, '0')}${darkerG.toString(16).padStart(2, '0')}${darkerB.toString(16).padStart(2, '0')}`;
     }
     return color;
+  };
+
+  // Deterministic color from string (for WADMKD)
+  const colorFromString = (value: string): string => {
+    // Simple hash
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+      hash = value.charCodeAt(i) + ((hash << 5) - hash);
+      hash |= 0; // Convert to 32bit int
+    }
+    // Map hash to HSL
+    const hue = Math.abs(hash) % 360;
+    const saturation = 60; // percent
+    const lightness = 60; // percent
+    return hslToHex(hue, saturation, lightness);
+  };
+
+  const hslToHex = (h: number, s: number, l: number): string => {
+    // Convert to [0,1]
+    const s1 = s / 100;
+    const l1 = l / 100;
+    const c = (1 - Math.abs(2 * l1 - 1)) * s1;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l1 - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+    else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+    else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+    else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+    else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+    const r255 = Math.round((r + m) * 255);
+    const g255 = Math.round((g + m) * 255);
+    const b255 = Math.round((b + m) * 255);
+    return `#${r255.toString(16).padStart(2, '0')}${g255.toString(16).padStart(2, '0')}${b255.toString(16).padStart(2, '0')}`;
   };
 
   // Load layers when map is ready
@@ -346,13 +467,29 @@ export default function MapboxMap({
           data: data
         });
 
-        // Add fill layer
+        // Build a deterministic color map per Kelurahan/Desa (WADMKD)
+        const uniqueKelurahan: string[] = Array.from(
+          new Set(
+            (data.features || [])
+              .map((f: any) => f?.properties?.WADMKD)
+              .filter((v: any) => typeof v === 'string' && v.length > 0)
+          )
+        );
+
+        // Create a Mapbox match expression: match(get('WADMKD'), 'Name1', '#hex1', ..., defaultColor)
+        const fillColorExpression: any[] = ['match', ['get', 'WADMKD']];
+        uniqueKelurahan.forEach((name) => {
+          fillColorExpression.push(name, colorFromString(name));
+        });
+        fillColorExpression.push(config.color); // default fallback
+
+        // Add fill layer with per-desa color
         map.current.addLayer({
           id: `${layerId}-fill`,
           type: 'fill',
           source: layerId,
           paint: {
-            'fill-color': config.color,
+            'fill-color': fillColorExpression as any,
             'fill-opacity': 0.3
           }
         });
@@ -388,6 +525,30 @@ export default function MapboxMap({
           paint: {
             'line-color': makeColorDarker(config.outlineColor, 0.3),
             'line-width': 3
+          },
+          filter: ['==', 'OBJECTID', ''] // Initially no features shown
+        });
+
+        // Add hovered layer (initially hidden)
+        map.current.addLayer({
+          id: `${layerId}-hovered`,
+          type: 'fill',
+          source: layerId,
+          paint: {
+            'fill-color': makeColorDarker(config.color, 0.15),
+            'fill-opacity': 0.6
+          },
+          filter: ['==', 'OBJECTID', ''] // Initially no features shown
+        });
+
+        // Add hovered outline layer (initially hidden)
+        map.current.addLayer({
+          id: `${layerId}-hovered-outline`,
+          type: 'line',
+          source: layerId,
+          paint: {
+            'line-color': makeColorDarker(config.outlineColor, 0.15),
+            'line-width': 2
           },
           filter: ['==', 'OBJECTID', ''] // Initially no features shown
         });
@@ -677,6 +838,13 @@ export default function MapboxMap({
       const layerId = selectedFeature.layerId;
       map.current.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', '']);
       map.current.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', '']);
+      // Also clear any hover highlight
+      if (map.current.getLayer(`${layerId}-hovered`)) {
+        map.current.setFilter(`${layerId}-hovered`, ['==', 'OBJECTID', '']);
+      }
+      if (map.current.getLayer(`${layerId}-hovered-outline`)) {
+        map.current.setFilter(`${layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
+      }
       setSelectedFeature(null);
     }
 
