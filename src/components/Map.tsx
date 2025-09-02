@@ -13,88 +13,42 @@ interface MapProps {
   setSelectedLayers: (layers: string[]) => void;
   showBaseMap: boolean;
   setShowBaseMap: (show: boolean) => void;
+  selectedKecamatan: string;
+  selectedKelurahan: string;
 }
 
 // Layer configurations based on the original index.html
 const layerConfigs = {
-  'sebaran-rumah-komersil': {
-    file: '/data/data.geojson', // Using existing data file for commercial houses
-    color: '#ff4444',
-    name: 'Sebaran Rumah Komersil',
-    colorBy: 'JENIS',
+  'layer-administrasi': {
+    file: '/new data/layer_administrasi.geojson',
+    color: '#4a90e2',
+    name: 'Layer Administrasi',
+    colorBy: 'WADMKC',
     colorScheme: {
-      'Sawah': { fill: '#90EE90', outline: '#228B22' },
-      'Ladang': { fill: '#8B4513', outline: '#654321' },
-      'Tegalan': { fill: '#D2B48C', outline: '#A0522D' },
-      'Kebun': { fill: '#6B8E23', outline: '#556B2F' },
-      'Hutan': { fill: '#006400', outline: '#004000' },
-      'Pemukiman': { fill: '#FA8072', outline: '#E9967A' },
-      'Industri': { fill: '#FFD700', outline: '#DAA520' },
-      'Perkantoran': { fill: '#4169E1', outline: '#191970' },
-      'Pertokoan': { fill: '#FF69B4', outline: '#DC143C' },
-      'default': { fill: '#ff4444', outline: '#cc0000' }
-    }
-  },
-  'kawasan-lahan-terbangun': {
-    file: '/data/kawasan_terbangun.geojson',
-    color: '#0088ff',
-    name: 'Kawasan Lahan Terbangun (Peta Tutupan Lahan)',
-    colorBy: 'JENIS',
-    colorScheme: {
-      'Sawah': { fill: '#90EE90', outline: '#228B22' },
-      'Ladang': { fill: '#8B4513', outline: '#654321' },
-      'Tegalan': { fill: '#D2B48C', outline: '#A0522D' },
-      'Kebun': { fill: '#6B8E23', outline: '#556B2F' },
-      'Hutan': { fill: '#006400', outline: '#004000' },
-      'Pemukiman': { fill: '#FA8072', outline: '#E9967A' },
-      'Industri': { fill: '#FFD700', outline: '#DAA520' },
-      'Perkantoran': { fill: '#4169E1', outline: '#191970' },
-      'Pertokoan': { fill: '#FF69B4', outline: '#DC143C' },
-      'default': { fill: '#0088ff', outline: '#0066cc' }
-    }
-  },
-  'kawasan-rawan-bencana': {
-    file: '/data/krb_gempa_bumi.geojson',
-    color: '#ff8800',
-    name: 'Kawasan Rawan Bencana Banjir, Gempa Bumi, Gerakan Tanah',
-    colorBy: 'UNSUR',
-    colorScheme: {
-      'Kawasan Rawan Bencana Rendah': { fill: '#00FF00', outline: '#008000' },
-      'Kawasan Rawan Bencana Menengah': { fill: '#FFFF00', outline: '#DAA520' },
-      'Kawasan Rawan Bencana Tinggi': { fill: '#FF0000', outline: '#8B0000' },
-      'Kawasan Rawan Bencana Sangat Tinggi': { fill: '#8B0000', outline: '#4B0000' },
-      'default': { fill: '#ff8800', outline: '#cc6600' }
-    }
-  },
-  'peta-izin-perumahan': {
-    file: '/data/kemiringan_lereng.geojson', // Using existing file as placeholder
-    color: '#00aa00',
-    name: 'Peta Izin Perumahan',
-    colorBy: 'KETERANGAN',
-    colorScheme: {
-      '0% - 8%': { fill: '#90EE90', outline: '#228B22' },
-      '8% - 15%': { fill: '#FFFF00', outline: '#DAA520' },
-      '15% - 25%': { fill: '#FFA500', outline: '#FF8C00' },
-      '25% - 45%': { fill: '#FF4500', outline: '#DC143C' },
-      '> 45%': { fill: '#8B0000', outline: '#4B0000' },
-      'default': { fill: '#00aa00', outline: '#006600' }
-    }
-  },
-  'kawasan-rencana-pola-ruang': {
-    file: '/data/rencana_pola_ruang.geojson',
-    color: '#aa00aa',
-    name: 'Kawasan Rencana Pola Ruang',
-    colorBy: 'NAMOBJ',
-    colorScheme: {
-      'Badan Air': { fill: '#4169E1', outline: '#191970' },
-      'Hutan Lindung': { fill: '#006400', outline: '#004000' },
-      'Hutan Produksi': { fill: '#228B22', outline: '#006400' },
-      'Pertanian': { fill: '#90EE90', outline: '#228B22' },
-      'Pemukiman': { fill: '#FA8072', outline: '#E9967A' },
-      'Industri': { fill: '#FFD700', outline: '#DAA520' },
-      'Pariwisata': { fill: '#FF69B4', outline: '#DC143C' },
-      'Infrastruktur': { fill: '#808080', outline: '#696969' },
-      'default': { fill: '#aa00aa', outline: '#660066' }
+      'Purwakarta': { fill: '#FF6B6B', outline: '#CC5555' },
+      'Plered': { fill: '#4ECDC4', outline: '#3EA89F' },
+      'Darangdan': { fill: '#45B7D1', outline: '#3692A8' },
+      'Wanayasa': { fill: '#96CEB4', outline: '#7AB89A' },
+      'Tegalwaru': { fill: '#FFEAA7', outline: '#E6D396' },
+      'Jatiluhur': { fill: '#DDA0DD', outline: '#C88BC8' },
+      'Sukatani': { fill: '#98D8C8', outline: '#7BC4B4' },
+      'Maniis': { fill: '#F7DC6F', outline: '#E4C95C' },
+      'Pasawahan': { fill: '#BB8FCE', outline: '#A67BB8' },
+      'Bojong': { fill: '#85C1E9', outline: '#6BA8D0' },
+      'Babakancikao': { fill: '#F8C471', outline: '#E5B15E' },
+      'Bungursari': { fill: '#82E0AA', outline: '#6FCD97' },
+      'Campaka': { fill: '#F1948A', outline: '#DE8177' },
+      'Cibatu': { fill: '#85C1E9', outline: '#6BA8D0' },
+      'Cikarang': { fill: '#F7DC6F', outline: '#E4C95C' },
+      'Cipeundeuy': { fill: '#BB8FCE', outline: '#A67BB8' },
+      'Cipicung': { fill: '#82E0AA', outline: '#6FCD97' },
+      'Cisaat': { fill: '#F1948A', outline: '#DE8177' },
+      'Cisarua': { fill: '#85C1E9', outline: '#6BA8D0' },
+      'Ciwangi': { fill: '#F7DC6F', outline: '#E4C95C' },
+      'Kiarapedes': { fill: '#BB8FCE', outline: '#A67BB8' },
+      'Pondoksalam': { fill: '#82E0AA', outline: '#6FCD97' },
+      'Sukasari': { fill: '#F1948A', outline: '#DE8177' },
+      'default': { fill: '#4a90e2', outline: '#357abd' }
     }
   }
 };
@@ -102,16 +56,21 @@ const layerConfigs = {
 // Component to handle layer updates
 function LayerController({ 
   selectedLayers, 
-  onFeatureClick 
+  onFeatureClick,
+  selectedKecamatan,
+  selectedKelurahan
 }: { 
   selectedLayers: string[];
   onFeatureClick: (featureData: any, layerName: string) => void;
+  selectedKecamatan: string;
+  selectedKelurahan: string;
 }) {
   const map = useMap();
   const [layers, setLayers] = useState<{ [key: string]: any }>({});
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
   const [L, setL] = useState<any>(null);
-  const [selectedLayer, setSelectedLayer] = useState<any>(null);
+  const [selectedFeature, setSelectedFeature] = useState<any>(null);
+  const [administrativeData, setAdministrativeData] = useState<any>(null);
 
   useEffect(() => {
     // Import Leaflet only on client side
@@ -123,6 +82,11 @@ function LayerController({
 
   useEffect(() => {
     if (!L || !map) return;
+
+    // Load administrative data for camera movement
+    if (!administrativeData) {
+      loadAdministrativeData();
+    }
 
     // Load new layers
     selectedLayers.forEach(layerId => {
@@ -142,9 +106,9 @@ function LayerController({
             });
           }
           
-          // Reset selected layer if it's being removed
-          if (selectedLayer === layers[layerId]) {
-            setSelectedLayer(null);
+          // Reset selected feature if it's being removed
+          if (selectedFeature === layers[layerId]) {
+            setSelectedFeature(null);
           }
           
           map.removeLayer(layers[layerId]);
@@ -156,7 +120,68 @@ function LayerController({
         }
       }
     });
-  }, [selectedLayers, layers, loading, map, L, onFeatureClick]);
+  }, [selectedLayers, layers, loading, map, L, onFeatureClick, administrativeData]);
+
+  // Effect to handle administrative area selection and camera movement
+  useEffect(() => {
+    if (!map || !administrativeData) return;
+
+    // Handle Kecamatan selection
+    if (selectedKecamatan && selectedKecamatan !== 'All Kecamatan') {
+      const kecamatanFeatures = administrativeData.features.filter((feature: any) => 
+        feature.properties.WADMKC === selectedKecamatan
+      );
+      
+      if (kecamatanFeatures.length > 0) {
+        moveCameraToFeatures(kecamatanFeatures);
+      }
+    }
+    // Handle Kelurahan selection
+    else if (selectedKelurahan && selectedKelurahan !== 'All Kelurahan/Desa') {
+      const kelurahanFeatures = administrativeData.features.filter((feature: any) => 
+        feature.properties.WADMKD === selectedKelurahan
+      );
+      
+      if (kelurahanFeatures.length > 0) {
+        moveCameraToFeatures(kelurahanFeatures);
+      }
+    }
+  }, [selectedKecamatan, selectedKelurahan, map, administrativeData]);
+
+  const loadAdministrativeData = async () => {
+    try {
+      const response = await fetch('/new data/layer_administrasi.geojson');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      const transformedData = transformCoordinates(data);
+      setAdministrativeData(transformedData);
+    } catch (error) {
+      console.error('Error loading administrative data:', error);
+    }
+  };
+
+  const moveCameraToFeatures = (features: any[]) => {
+    if (!map || !L || features.length === 0) return;
+
+    try {
+      // Create a temporary layer to calculate bounds
+      const tempLayer = L.geoJSON({ type: 'FeatureCollection', features });
+      const bounds = tempLayer.getBounds();
+      
+      // Check if bounds are valid
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, {
+          padding: [20, 20],
+          maxZoom: 15,
+          animate: true,
+          duration: 1
+        });
+      }
+    } catch (error) {
+      console.error('Error moving camera to features:', error);
+    }
+  };
 
   const loadLayer = async (layerId: string) => {
     if (!L || !map) return;
@@ -173,162 +198,309 @@ function LayerController({
       const data = await response.json();
       const transformedData = transformCoordinates(data);
 
-      const geoJsonLayer = L.geoJSON(transformedData, {
-        style: (feature: any) => {
-          const propertyValue = feature.properties[config.colorBy];
-          const colorScheme = config.colorScheme[propertyValue as keyof typeof config.colorScheme] || config.colorScheme.default;
-          
-          return {
+      // Create individual feature layers for proper isolation
+      const featureLayers: any[] = [];
+      
+      transformedData.features.forEach((feature: any) => {
+        const propertyValue = feature.properties[config.colorBy];
+        const colorScheme = config.colorScheme[propertyValue as keyof typeof config.colorScheme] || config.colorScheme.default;
+        
+        // Make administrative layer more transparent to show other layers
+        const fillOpacity = layerId === 'layer-administrasi' ? 0.3 : 0.8;
+        
+        const featureLayer = L.geoJSON(feature, {
+          style: {
             fillColor: colorScheme.fill,
-            weight: 2,
+            weight: layerId === 'layer-administrasi' ? 1 : 2,
             opacity: 1,
             color: colorScheme.outline,
-            fillOpacity: 0.8
-          };
-        },
-        onEachFeature: (feature: any, layer: any) => {
-          // Add center label to the polygon
-          if (feature.geometry && feature.geometry.coordinates) {
-            const center = getPolygonCenter(feature.geometry.coordinates);
-            if (center && Array.isArray(center) && center.length === 2 && 
-                !isNaN(center[0]) && !isNaN(center[1]) && 
-                isFinite(center[0]) && isFinite(center[1])) {
+            fillOpacity: fillOpacity
+          }
+        });
+        
+        // Store layerId and original color with the feature layer
+        featureLayer.layerId = layerId;
+        featureLayer.originalColor = colorScheme.fill;
+        featureLayer.featureProperties = feature.properties;
+        
+        // Add center labels to the polygon for administrative layer
+        if (feature.geometry && feature.geometry.coordinates && layerId === 'layer-administrasi') {
+          const center = getPolygonCenter(feature.geometry.coordinates);
+          
+          if (center && Array.isArray(center) && center.length === 2 && 
+              !isNaN(center[0]) && !isNaN(center[1]) && 
+              isFinite(center[0]) && isFinite(center[1])) {
+            
+            // Create labels for both Kecamatan (WADMKC) and Kelurahan/Desa (WADMKD)
+            const kecamatanName = feature.properties.WADMKC || '';
+            const kelurahanName = feature.properties.WADMKD || '';
+            
+            // Create Kecamatan label (larger, more prominent)
+            if (kecamatanName) {
+              const kecamatanLabelIcon = L.divIcon({
+                className: 'kecamatan-label',
+                html: `<div style="background: rgba(255, 255, 255, 0.95); padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1a1a1a; border: 2px solid #4a90e2; box-shadow: 0 3px 6px rgba(0,0,0,0.3); white-space: nowrap; text-align: center; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">${kecamatanName}</div>`,
+                iconSize: [150, 30],
+                iconAnchor: [75, 15]
+              });
               
-              const propertyValue = feature.properties[config.colorBy] || 'Feature';
-              const labelText = propertyValue.length > 15 ? propertyValue.substring(0, 15) + '...' : propertyValue;
+              const kecamatanLabelMarker = L.marker(center, {
+                icon: kecamatanLabelIcon,
+                interactive: false,
+                zIndexOffset: 9999
+              });
               
-              const label = L.divIcon({
-                className: 'polygon-label',
-                html: `<div class="bg-white bg-opacity-95 px-2 py-1 rounded text-xs font-medium text-gray-800 border border-gray-300 shadow-sm cursor-pointer hover:bg-opacity-100">${labelText}</div>`,
+              // Force the label to be on top
+              kecamatanLabelMarker.setZIndexOffset(9999);
+              map.addLayer(kecamatanLabelMarker);
+              
+              // Store the label marker with the feature layer for cleanup
+              if (!featureLayer.labelMarkers) featureLayer.labelMarkers = [];
+              featureLayer.labelMarkers.push(kecamatanLabelMarker);
+            }
+            
+            // Create Kelurahan/Desa label (smaller, positioned slightly below Kecamatan)
+            if (kelurahanName && kelurahanName !== kecamatanName) {
+              // Calculate offset position for Kelurahan label (slightly below center)
+              const kelurahanCenter = [center[0], center[1] - 0.002]; // Small offset
+              
+              const kelurahanLabelIcon = L.divIcon({
+                className: 'kelurahan-label',
+                html: `<div style="background: rgba(255, 255, 255, 0.9); padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #666; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; text-align: center; pointer-events: none;">${kelurahanName}</div>`,
                 iconSize: [120, 24],
                 iconAnchor: [60, 12]
               });
               
-              try {
-                const labelMarker = L.marker(center, { 
-                  icon: label,
-                  interactive: false // Make label non-interactive so clicks pass through to polygon
+              const kelurahanLabelMarker = L.marker(kelurahanCenter, {
+                icon: kelurahanLabelIcon,
+                interactive: false,
+                zIndexOffset: 9998
+              });
+              
+              // Force the label to be on top
+              kelurahanLabelMarker.setZIndexOffset(9998);
+              map.addLayer(kelurahanLabelMarker);
+              
+              // Store the label marker with the feature layer for cleanup
+              if (!featureLayer.labelMarkers) featureLayer.labelMarkers = [];
+              featureLayer.labelMarkers.push(kelurahanLabelMarker);
+            }
+          }
+        }
+
+        // Add click event for this individual feature
+        featureLayer.on('click', () => {
+          console.log(`${config.name} feature clicked:`, feature.properties);
+          onFeatureClick(feature.properties, config.name);
+          
+          // Add center labels to the polygon for administrative layer
+          if (feature.geometry && feature.geometry.coordinates && layerId === 'layer-administrasi') {
+            const center = getPolygonCenter(feature.geometry.coordinates);
+            
+            // Debug: Log the feature properties and calculated center
+            console.log('Feature:', feature.properties.WADMKC || feature.properties.WADMKD, 'Center:', center, 'Coords structure:', feature.geometry.coordinates.length, 'First coord sample:', feature.geometry.coordinates[0]?.[0]?.slice(0, 3));
+            
+            if (center && Array.isArray(center) && center.length === 2 && 
+                !isNaN(center[0]) && !isNaN(center[1]) && 
+                isFinite(center[0]) && isFinite(center[1])) {
+              
+              // Create labels for both Kecamatan (WADMKC) and Kelurahan/Desa (WADMKD)
+              const kecamatanName = feature.properties.WADMKC || '';
+              const kelurahanName = feature.properties.WADMKD || '';
+              
+
+              
+              // Create Kecamatan label (larger, more prominent)
+              if (kecamatanName) {
+                const kecamatanLabelIcon = L.divIcon({
+                  className: 'kecamatan-label',
+                  html: `<div style="background: rgba(255, 255, 255, 0.95); padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1a1a1a; border: 2px solid #4a90e2; box-shadow: 0 3px 6px rgba(0,0,0,0.3); white-space: nowrap; text-align: center; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">${kecamatanName}</div>`,
+                  iconSize: [150, 30],
+                  iconAnchor: [75, 15]
                 });
-                map.addLayer(labelMarker);
                 
-                // Store the label marker with the layer for cleanup
-                if (!layer.labelMarkers) layer.labelMarkers = [];
-                layer.labelMarkers.push(labelMarker);
-              } catch (error) {
-                console.warn('Failed to create label marker for feature:', feature.properties, error);
+                const kecamatanLabelMarker = L.marker(center, {
+                  icon: kecamatanLabelIcon,
+                  interactive: false,
+                  zIndexOffset: 9999
+                });
+                
+                // Force the label to be on top
+                kecamatanLabelMarker.setZIndexOffset(9999);
+                map.addLayer(kecamatanLabelMarker);
+                
+                // Store the label marker with the feature layer for cleanup
+                if (!featureLayer.labelMarkers) featureLayer.labelMarkers = [];
+                featureLayer.labelMarkers.push(kecamatanLabelMarker);
+              }
+              
+              // Create Kelurahan/Desa label (smaller, positioned slightly below Kecamatan)
+              if (kelurahanName && kelurahanName !== kecamatanName) {
+                // Calculate offset position for Kelurahan label (slightly below center)
+                const kelurahanCenter = [center[0], center[1] - 0.002]; // Small offset
+                
+                const kelurahanLabelIcon = L.divIcon({
+                  className: 'kelurahan-label',
+                  html: `<div style="background: rgba(255, 255, 255, 0.9); padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #666; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; text-align: center; pointer-events: none;">${kelurahanName}</div>`,
+                  iconSize: [120, 24],
+                  iconAnchor: [60, 12]
+                });
+                
+                const kelurahanLabelMarker = L.marker(kelurahanCenter, {
+                  icon: kelurahanLabelIcon,
+                  interactive: false,
+                  zIndexOffset: 9998
+                });
+                
+                // Force the label to be on top
+                kelurahanLabelMarker.setZIndexOffset(9998);
+                map.addLayer(kelurahanLabelMarker);
+                
+                // Store the label marker with the feature layer for cleanup
+                if (!featureLayer.labelMarkers) featureLayer.labelMarkers = [];
+                featureLayer.labelMarkers.push(kelurahanLabelMarker);
               }
             }
           }
 
-          layer.on('click', () => {
+          featureLayer.on('click', () => {
             console.log(`${config.name} feature clicked:`, feature.properties);
             onFeatureClick(feature.properties, config.name);
             
-            // Reset previously selected layer to normal style
-            if (selectedLayer && selectedLayer !== layer) {
-              const originalColor = selectedLayer.originalColor || selectedLayer.options.fillColor;
-              selectedLayer.setStyle({ 
+            // Reset previously selected feature to normal style
+            if (selectedFeature && selectedFeature !== featureLayer) {
+              const originalColor = selectedFeature.originalColor || selectedFeature.options.fillColor;
+              const isAdminLayer = selectedFeature.layerId === 'layer-administrasi';
+              selectedFeature.setStyle({ 
                 fillColor: originalColor,
-                weight: 2,
-                fillOpacity: 0.8
+                weight: isAdminLayer ? 1 : 2,
+                fillOpacity: isAdminLayer ? 0.3 : 0.8
               });
               
-              // Reset label opacity for previously selected layer
-              if (selectedLayer.labelMarkers) {
-                selectedLayer.labelMarkers.forEach((marker: any) => {
+              // Reset label styling for previously selected feature
+              if (selectedFeature.labelMarkers) {
+                selectedFeature.labelMarkers.forEach((marker: any) => {
                   const labelDiv = marker.getElement();
                   if (labelDiv) {
-                    labelDiv.style.opacity = '0.7';
+                    const isAdminLayer = selectedFeature.layerId === 'layer-administrasi';
+                    labelDiv.style.opacity = isAdminLayer ? '0.9' : '0.7';
                     labelDiv.style.transform = 'scale(1)';
                     labelDiv.style.transition = 'all 0.3s ease';
+                    // Reset label styling to default
+                    if (marker.getElement().classList.contains('kecamatan-label')) {
+                      labelDiv.style.border = '2px solid #4a90e2';
+                      labelDiv.style.background = 'rgba(255, 255, 255, 0.95)';
+                    }
                   }
                 });
               }
             }
             
             // Store original color if not already stored
-            if (!layer.originalColor) {
-              layer.originalColor = layer.options.fillColor;
+            if (!featureLayer.originalColor) {
+              featureLayer.originalColor = featureLayer.options.fillColor;
             }
             
             // Make selected feature darker (reduce brightness by 30%)
-            const originalColor = layer.originalColor;
+            const originalColor = featureLayer.originalColor;
             const darkerColor = makeColorDarker(originalColor, 0.3);
+            const isAdminLayer = layerId === 'layer-administrasi';
             
-            layer.setStyle({ 
+            featureLayer.setStyle({ 
               fillColor: darkerColor,
-              fillOpacity: 0.9,
-              weight: 4
+              fillOpacity: isAdminLayer ? 0.8 : 0.9,
+              weight: isAdminLayer ? 3 : 4
             });
             
-            // Highlight the label for clicked feature
-            if (layer.labelMarkers) {
-              layer.labelMarkers.forEach((marker: any) => {
+            // Highlight the labels for clicked feature
+            if (featureLayer.labelMarkers) {
+              featureLayer.labelMarkers.forEach((marker: any) => {
                 const labelDiv = marker.getElement();
                 if (labelDiv) {
                   labelDiv.style.opacity = '1';
                   labelDiv.style.transform = 'scale(1.1)';
                   labelDiv.style.transition = 'all 0.3s ease';
+                  // Add highlight effect for selected feature
+                  if (marker.getElement().classList.contains('kecamatan-label')) {
+                    labelDiv.style.border = '2px solid #ff6b6b';
+                    labelDiv.style.background = 'rgba(255, 255, 255, 1)';
+                  }
                 }
               });
             }
             
-            // Update selected layer
-            setSelectedLayer(layer);
+            // Update selected feature
+            setSelectedFeature(featureLayer);
           });
 
-          layer.on('mouseover', () => {
-            // Only apply hover effect if this layer is not currently selected
-            if (selectedLayer !== layer) {
-              const originalColor = layer.originalColor || layer.options.fillColor;
-              layer.setStyle({ 
-                weight: 4,
-                fillOpacity: 0.9,
+          featureLayer.on('mouseover', () => {
+            // Only apply hover effect if this feature is not currently selected
+            if (selectedFeature !== featureLayer) {
+              const originalColor = featureLayer.originalColor || featureLayer.options.fillColor;
+              const isAdminLayer = layerId === 'layer-administrasi';
+              featureLayer.setStyle({ 
+                weight: isAdminLayer ? 2 : 4,
+                fillOpacity: isAdminLayer ? 0.6 : 0.9,
                 fillColor: originalColor
               });
             }
             
-            // Highlight label on hover
-            if (layer.labelMarkers) {
-              layer.labelMarkers.forEach((marker: any) => {
+            // Highlight labels on hover
+            if (featureLayer.labelMarkers) {
+              featureLayer.labelMarkers.forEach((marker: any) => {
                 const labelDiv = marker.getElement();
                 if (labelDiv) {
                   labelDiv.style.opacity = '1';
                   labelDiv.style.transform = 'scale(1.05)';
                   labelDiv.style.transition = 'all 0.2s ease';
+                  // Add hover effect for labels
+                  if (marker.getElement().classList.contains('kecamatan-label')) {
+                    labelDiv.style.border = '2px solid #4a90e2';
+                    labelDiv.style.background = 'rgba(255, 255, 255, 1)';
+                  }
                 }
               });
             }
           });
 
-          layer.on('mouseout', () => {
-            // Only reset if this layer is not currently selected
-            if (selectedLayer !== layer) {
-              const originalColor = layer.originalColor || layer.options.fillColor;
-              layer.setStyle({ 
-                weight: 2,
-                fillOpacity: 0.8,
+          featureLayer.on('mouseout', () => {
+            // Only reset if this feature is not currently selected
+            if (selectedFeature !== featureLayer) {
+              const originalColor = featureLayer.originalColor || featureLayer.options.fillColor;
+              const isAdminLayer = layerId === 'layer-administrasi';
+              featureLayer.setStyle({ 
+                weight: isAdminLayer ? 1 : 2,
+                fillOpacity: isAdminLayer ? 0.3 : 0.8,
                 fillColor: originalColor
               });
             }
             
-            // Reset label on mouseout
-            if (layer.labelMarkers) {
-              layer.labelMarkers.forEach((marker: any) => {
+            // Reset labels on mouseout
+            if (featureLayer.labelMarkers) {
+              featureLayer.labelMarkers.forEach((marker: any) => {
                 const labelDiv = marker.getElement();
                 if (labelDiv) {
-                  labelDiv.style.opacity = '0.7';
+                  const isAdminLayer = layerId === 'layer-administrasi';
+                  labelDiv.style.opacity = isAdminLayer ? '0.9' : '0.7';
                   labelDiv.style.transform = 'scale(1)';
                   labelDiv.style.transition = 'all 0.2s ease';
+                  // Reset label styling
+                  if (marker.getElement().classList.contains('kecamatan-label')) {
+                    labelDiv.style.border = '2px solid #4a90e2';
+                    labelDiv.style.background = 'rgba(255, 255, 255, 0.95)';
+                  }
                 }
               });
             }
           });
-        }
-      });
 
-      map.addLayer(geoJsonLayer);
-      setLayers(prev => ({ ...prev, [layerId]: geoJsonLayer }));
+          // Add this individual feature layer to the map
+          map.addLayer(featureLayer);
+          featureLayers.push(featureLayer);
+        });
+
+        // Store all feature layers for this layer ID
+        setLayers(prev => ({ ...prev, [layerId]: featureLayers }));
     } catch (error) {
       console.error(`Error loading ${config.name}:`, error);
     } finally {
@@ -339,52 +511,11 @@ function LayerController({
   return null;
 }
 
-// Transform coordinates from projected to WGS84
+// No transformation needed - coordinates are already in WGS84 format
 function transformCoordinates(data: any) {
-  return {
-    type: 'FeatureCollection',
-    features: data.features.map((feature: any) => {
-      const transformedFeature = JSON.parse(JSON.stringify(feature));
-      
-      if (transformedFeature.geometry && transformedFeature.geometry.coordinates) {
-        transformedFeature.geometry.coordinates = transformedFeature.geometry.coordinates.map((polygon: any) => 
-          polygon.map((ring: any) => 
-            ring.map((coord: any) => {
-              // Validate input coordinates
-              if (!Array.isArray(coord) || coord.length < 2) {
-                console.warn('Invalid coordinate format:', coord);
-                return [0, 0]; // Fallback to origin
-              }
-              
-              const [x, y] = coord;
-              
-              // Check if coordinates are already in WGS84 format
-              if (x >= -180 && x <= 180 && y >= -90 && y <= 90) {
-                // Already in WGS84, return as is
-                return [x, y];
-              } else {
-                // Convert from projected coordinates to WGS84
-                // For UTM Zone 48S coordinates (around 762144, 9259865)
-                // Better approximation for Purwakarta area
-                const lng = (x - 500000) / 1000000 + 107.5;
-                const lat = y / 10000000 - 6.5;
-                
-                // Validate transformed coordinates
-                if (isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) {
-                  console.warn('Invalid transformed coordinates:', { x, y, lng, lat });
-                  return [107.4439, -6.5569]; // Fallback to Purwakarta center
-                }
-                
-                return [lng, lat];
-              }
-            })
-          )
-        );
-      }
-      
-      return transformedFeature;
-    })
-  };
+  // Your GeoJSON data is already in WGS84 format (longitude/latitude)
+  // No transformation needed, just return the data as-is
+  return data;
 }
 
 // Helper to make a color darker
@@ -423,35 +554,96 @@ function makeColorDarker(color: string, factor: number): string {
   return color;
 }
 
-// Helper to get the center of a polygon
+// Helper to get the center of a polygon (handles both Polygon and MultiPolygon)
 function getPolygonCenter(coordinates: any) {
   if (!coordinates || coordinates.length === 0) return null;
 
+  // Handle MultiPolygon coordinates (extra nesting level)
+  const polygons = Array.isArray(coordinates[0]) && Array.isArray(coordinates[0][0]) ? coordinates : [coordinates];
+  
+  let totalArea = 0;
+  let weightedX = 0;
+  let weightedY = 0;
+
+  for (const polygon of polygons) {
+    // Use the first ring (exterior boundary) for centroid calculation
+    const ring = polygon[0];
+    if (!ring || ring.length < 3) continue;
+
+    // Calculate centroid using shoelace formula
+    let area = 0;
+    let centroidX = 0;
+    let centroidY = 0;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      const coord1 = ring[i];
+      const coord2 = ring[i + 1];
+      
+      // Extract longitude and latitude (first two values)
+      const x1 = coord1[0]; // longitude
+      const y1 = coord1[1]; // latitude
+      const x2 = coord2[0]; // longitude
+      const y2 = coord2[1]; // latitude
+      
+      if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
+          !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+        continue;
+      }
+
+      const cross = x1 * y2 - x2 * y1;
+      area += cross;
+      centroidX += (x1 + x2) * cross;
+      centroidY += (y1 + y2) * cross;
+    }
+
+    if (Math.abs(area) > 1e-10) {
+      area /= 2;
+      centroidX /= (6 * area);
+      centroidY /= (6 * area);
+      
+      totalArea += Math.abs(area);
+      weightedX += centroidX * Math.abs(area);
+      weightedY += centroidY * Math.abs(area);
+    }
+  }
+
+  if (totalArea > 0) {
+    const finalX = weightedX / totalArea;
+    const finalY = weightedY / totalArea;
+    
+    // Validate the result
+    if (!isNaN(finalX) && !isNaN(finalY) && isFinite(finalX) && isFinite(finalY)) {
+      return [finalX, finalY];
+    }
+  }
+
+  // Fallback to bounding box center if centroid calculation fails
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   let validCoords = 0;
 
-  for (const ring of coordinates) {
-    for (const coord of ring) {
-      // Check if coordinates are valid numbers
-      if (Array.isArray(coord) && coord.length >= 2 && 
-          !isNaN(coord[0]) && !isNaN(coord[1]) && 
-          isFinite(coord[0]) && isFinite(coord[1])) {
-        
-        minX = Math.min(minX, coord[0]);
-        maxX = Math.max(maxX, coord[0]);
-        minY = Math.min(minY, coord[1]);
-        maxY = Math.max(maxY, coord[1]);
-        validCoords++;
+  for (const polygon of polygons) {
+    for (const ring of polygon) {
+      for (const coord of ring) {
+        if (Array.isArray(coord) && coord.length >= 2) {
+          const x = coord[0]; // longitude
+          const y = coord[1]; // latitude
+          
+          if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+            validCoords++;
+          }
+        }
       }
     }
   }
 
-  // Only return center if we have valid coordinates
   if (validCoords > 0 && isFinite(minX) && isFinite(maxX) && isFinite(minY) && isFinite(maxY)) {
     const centerX = minX + (maxX - minX) / 2;
     const centerY = minY + (maxY - minY) / 2;
     
-    // Final validation
     if (!isNaN(centerX) && !isNaN(centerY) && isFinite(centerX) && isFinite(centerY)) {
       return [centerX, centerY];
     }
@@ -476,7 +668,7 @@ export default function Map(props: MapProps) {
 }
 
 // Client-only map component
-function ClientMap({ activeMenu, selectedLayers, setSelectedLayers, showBaseMap, setShowBaseMap }: MapProps) {
+function ClientMap({ activeMenu, selectedLayers, setSelectedLayers, showBaseMap, setShowBaseMap, selectedKecamatan, selectedKelurahan }: MapProps) {
   const [mapReady, setMapReady] = useState(false);
   const [featureDrawer, setFeatureDrawer] = useState<{
     isOpen: boolean;
@@ -525,6 +717,8 @@ function ClientMap({ activeMenu, selectedLayers, setSelectedLayers, showBaseMap,
           <LayerController 
             selectedLayers={selectedLayers} 
             onFeatureClick={handleFeatureClick}
+            selectedKecamatan={selectedKecamatan}
+            selectedKelurahan={selectedKelurahan}
           />
         )}
       </MapContainer>

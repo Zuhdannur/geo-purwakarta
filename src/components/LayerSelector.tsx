@@ -20,25 +20,10 @@ export default function LayerSelector({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const layerConfigs = {
-    'krb-gempa': {
-      name: 'KRB Gempa Bumi (6.1MB)',
-      color: '#ff8800',
-      description: 'Earthquake risk zones'
-    },
-    'kemiringan': {
-      name: 'Kemiringan Lereng (10MB)',
-      color: '#00aa00',
-      description: 'Slope data'
-    },
-    'kawasan': {
-      name: 'Kawasan Terbangun (90MB)',
-      color: '#0088ff',
-      description: 'Built-up areas'
-    },
-    'rencana': {
-      name: 'Rencana Pola Ruang (45MB)',
-      color: '#aa00aa',
-      description: 'Spatial planning'
+    'layer-administrasi': {
+      name: 'Layer Administrasi (6.4MB)',
+      color: '#4a90e2',
+      description: 'Administrative boundaries'
     }
   };
 

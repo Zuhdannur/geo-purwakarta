@@ -12,69 +12,33 @@ interface LegendProps {
 }
 
 const layerConfigs = {
-  'data': {
-    name: 'Data',
-    colorBy: 'JENIS',
+  'layer-administrasi': {
+    name: 'Layer Administrasi',
+    colorBy: 'WADMKC',
     colorScheme: {
-      'Sawah': { fill: '#90EE90', outline: '#228B22' },
-      'Ladang': { fill: '#8B4513', outline: '#654321' },
-      'Tegalan': { fill: '#D2B48C', outline: '#A0522D' },
-      'Kebun': { fill: '#6B8E23', outline: '#556B2F' },
-      'Hutan': { fill: '#006400', outline: '#004000' },
-      'Pemukiman': { fill: '#FA8072', outline: '#E9967A' },
-      'Industri': { fill: '#FFD700', outline: '#DAA520' },
-      'Perkantoran': { fill: '#4169E1', outline: '#191970' },
-      'Pertokoan': { fill: '#FF69B4', outline: '#DC143C' }
-    }
-  },
-  'krb-gempa': {
-    name: 'KRB Gempa Bumi',
-    colorBy: 'UNSUR',
-    colorScheme: {
-      'Kawasan Rawan Bencana Rendah': { fill: '#00FF00', outline: '#008000' },
-      'Kawasan Rawan Bencana Menengah': { fill: '#FFFF00', outline: '#DAA520' },
-      'Kawasan Rawan Bencana Tinggi': { fill: '#FF0000', outline: '#8B0000' },
-      'Kawasan Rawan Bencana Sangat Tinggi': { fill: '#8B0000', outline: '#4B0000' }
-    }
-  },
-  'kemiringan': {
-    name: 'Kemiringan Lereng',
-    colorBy: 'KETERANGAN',
-    colorScheme: {
-      '0% - 8%': { fill: '#90EE90', outline: '#228B22' },
-      '8% - 15%': { fill: '#FFFF00', outline: '#DAA520' },
-      '15% - 25%': { fill: '#FFA500', outline: '#FF8C00' },
-      '25% - 45%': { fill: '#FF4500', outline: '#DC143C' },
-      '> 45%': { fill: '#8B0000', outline: '#4B0000' }
-    }
-  },
-  'kawasan': {
-    name: 'Kawasan Terbangun',
-    colorBy: 'JENIS',
-    colorScheme: {
-      'Sawah': { fill: '#90EE90', outline: '#228B22' },
-      'Ladang': { fill: '#8B4513', outline: '#654321' },
-      'Tegalan': { fill: '#D2B48C', outline: '#A0522D' },
-      'Kebun': { fill: '#6B8E23', outline: '#556B2F' },
-      'Hutan': { fill: '#006400', outline: '#004000' },
-      'Pemukiman': { fill: '#FA8072', outline: '#E9967A' },
-      'Industri': { fill: '#FFD700', outline: '#DAA520' },
-      'Perkantoran': { fill: '#4169E1', outline: '#191970' },
-      'Pertokoan': { fill: '#FF69B4', outline: '#DC143C' }
-    }
-  },
-  'rencana': {
-    name: 'Rencana Pola Ruang',
-    colorBy: 'NAMOBJ',
-    colorScheme: {
-      'Badan Air': { fill: '#4169E1', outline: '#191970' },
-      'Hutan Lindung': { fill: '#006400', outline: '#004000' },
-      'Hutan Produksi': { fill: '#228B22', outline: '#006400' },
-      'Pertanian': { fill: '#90EE90', outline: '#228B22' },
-      'Pemukiman': { fill: '#FA8072', outline: '#E9967A' },
-      'Industri': { fill: '#FFD700', outline: '#DAA520' },
-      'Pariwisata': { fill: '#FF69B4', outline: '#DC143C' },
-      'Infrastruktur': { fill: '#808080', outline: '#696969' }
+      'Purwakarta': { fill: '#FF6B6B', outline: '#CC5555' },
+      'Plered': { fill: '#4ECDC4', outline: '#3EA89F' },
+      'Darangdan': { fill: '#45B7D1', outline: '#3692A8' },
+      'Wanayasa': { fill: '#96CEB4', outline: '#7AB89A' },
+      'Tegalwaru': { fill: '#FFEAA7', outline: '#E6D396' },
+      'Jatiluhur': { fill: '#DDA0DD', outline: '#C88BC8' },
+      'Sukatani': { fill: '#98D8C8', outline: '#7BC4B4' },
+      'Maniis': { fill: '#F7DC6F', outline: '#E4C95C' },
+      'Pasawahan': { fill: '#BB8FCE', outline: '#A67BB8' },
+      'Bojong': { fill: '#85C1E9', outline: '#6BA8D0' },
+      'Babakancikao': { fill: '#F8C471', outline: '#E5B15E' },
+      'Bungursari': { fill: '#82E0AA', outline: '#6FCD97' },
+      'Campaka': { fill: '#F1948A', outline: '#DE8177' },
+      'Cibatu': { fill: '#85C1E9', outline: '#6BA8D0' },
+      'Cikarang': { fill: '#F7DC6F', outline: '#E4C95C' },
+      'Cipeundeuy': { fill: '#BB8FCE', outline: '#A67BB8' },
+      'Cipicung': { fill: '#82E0AA', outline: '#6FCD97' },
+      'Cisaat': { fill: '#F1948A', outline: '#DE8177' },
+      'Cisarua': { fill: '#85C1E9', outline: '#6BA8D0' },
+      'Ciwangi': { fill: '#F7DC6F', outline: '#E4C95C' },
+      'Kiarapedes': { fill: '#BB8FCE', outline: '#A67BB8' },
+      'Pondoksalam': { fill: '#82E0AA', outline: '#6FCD97' },
+      'Sukasari': { fill: '#F1948A', outline: '#DE8177' }
     }
   }
 };

@@ -10,6 +10,10 @@ interface SidebarProps {
   setSelectedLayers: (layers: string[]) => void;
   showBaseMap: boolean;
   setShowBaseMap: (show: boolean) => void;
+  selectedKecamatan: string;
+  setSelectedKecamatan: (kecamatan: string) => void;
+  selectedKelurahan: string;
+  setSelectedKelurahan: (kelurahan: string) => void;
 }
 
 export default function Sidebar({ 
@@ -18,89 +22,117 @@ export default function Sidebar({
   selectedLayers, 
   setSelectedLayers,
   showBaseMap,
-  setShowBaseMap
+  setShowBaseMap,
+  selectedKecamatan,
+  setSelectedKecamatan,
+  selectedKelurahan,
+  setSelectedKelurahan
 }: SidebarProps) {
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['peta-administratif']); // Default expanded
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['layer-administrasi']); // Default expanded
   const [showKecamatanDropdown, setShowKecamatanDropdown] = useState(false);
   const [showKelurahanDropdown, setShowKelurahanDropdown] = useState(false);
-  const [selectedKecamatan, setSelectedKecamatan] = useState('All Kecamatan');
-  const [selectedKelurahan, setSelectedKelurahan] = useState('All Kelurahan/Desa');
 
   const kecamatanRef = useRef<HTMLDivElement>(null);
   const kelurahanRef = useRef<HTMLDivElement>(null);
 
   // Layer configurations matching the image
   const layerConfigs = {
-    'sebaran-rumah-komersil': {
-      name: 'Sebaran Rumah Komersil',
+    'layer-administrasi': {
+      name: 'Layer Administrasi',
       checked: true
-    },
-    'kawasan-lahan-terbangun': {
-      name: 'Kawasan Lahan Terbangun (Peta Tutupan Lahan)',
-      checked: false
-    },
-    'kawasan-rawan-bencana': {
-      name: 'Kawasan Rawan Bencana Banjir, Gempa Bumi, Gerakan Tanah',
-      checked: true
-    },
-    'peta-izin-perumahan': {
-      name: 'Peta Izin Perumahan',
-      checked: false
-    },
-    'kawasan-rencana-pola-ruang': {
-      name: 'Kawasan Rencana Pola Ruang',
-      checked: false
     }
   };
 
-  // Mock data for dropdowns
+  // Mock data for dropdowns - using actual values from GeoJSON
   const kecamatanList = [
     'All Kecamatan',
-    'Kecamatan Purwakarta',
-    'Kecamatan Plered',
-    'Kecamatan Darangdan',
-    'Kecamatan Wanayasa',
-    'Kecamatan Tegalwaru',
-    'Kecamatan Jatiluhur',
-    'Kecamatan Sukatani',
-    'Kecamatan Maniis',
-    'Kecamatan Pasawahan',
-    'Kecamatan Bojong',
-    'Kecamatan Babakancikao',
-    'Kecamatan Bungursari',
-    'Kecamatan Campaka',
-    'Kecamatan Cibatu',
-    'Kecamatan Cikarang',
-    'Kecamatan Cipeundeuy',
-    'Kecamatan Cipicung',
-    'Kecamatan Cisaat',
-    'Kecamatan Cisarua',
-    'Kecamatan Ciwangi'
+    'Purwakarta',
+    'Plered',
+    'Darangdan',
+    'Wanayasa',
+    'Tegalwaru',
+    'Jatiluhur',
+    'Sukatani',
+    'Maniis',
+    'Pasawahan',
+    'Bojong',
+    'Babakancikao',
+    'Bungursari',
+    'Campaka',
+    'Cibatu',
+    'Cikarang',
+    'Cipeundeuy',
+    'Cipicung',
+    'Cisaat',
+    'Cisarua',
+    'Ciwangi',
+    'Pondoksalam'
   ];
 
-  const kelurahanList = [
-    'All Kelurahan/Desa',
-    'Kelurahan Cipaisan',
-    'Kelurahan Ciseureuh',
-    'Kelurahan Purwamekar',
-    'Kelurahan Nagrikidul',
-    'Kelurahan Nagritengah',
-    'Kelurahan Nagrikaler',
-    'Kelurahan Sindangkasih',
-    'Kelurahan Tegalmunjul',
-    'Kelurahan Anjun',
-    'Kelurahan Plered',
-    'Kelurahan Darangdan',
-    'Kelurahan Wanayasa',
-    'Kelurahan Tegalwaru',
-    'Kelurahan Jatiluhur',
-    'Kelurahan Sukatani',
-    'Kelurahan Maniis',
-    'Kelurahan Pasawahan',
-    'Kelurahan Bojong',
-    'Kelurahan Babakancikao',
-    'Kelurahan Bungursari'
+  // Complete kelurahan list with their corresponding kecamatan
+  const kelurahanData = [
+    { name: 'All Kelurahan/Desa', kecamatan: 'All Kecamatan' },
+    // Purwakarta Kecamatan
+    { name: 'Cipaisan', kecamatan: 'Purwakarta' },
+    { name: 'Ciseureuh', kecamatan: 'Purwakarta' },
+    { name: 'Purwamekar', kecamatan: 'Purwakarta' },
+    { name: 'Nagrikidul', kecamatan: 'Purwakarta' },
+    { name: 'Nagritengah', kecamatan: 'Purwakarta' },
+    { name: 'Nagrikaler', kecamatan: 'Purwakarta' },
+    { name: 'Sindangkasih', kecamatan: 'Purwakarta' },
+    { name: 'Tegalmunjul', kecamatan: 'Purwakarta' },
+    // Plered Kecamatan
+    { name: 'Anjun', kecamatan: 'Plered' },
+    { name: 'Plered', kecamatan: 'Plered' },
+    // Darangdan Kecamatan
+    { name: 'Darangdan', kecamatan: 'Darangdan' },
+    // Wanayasa Kecamatan
+    { name: 'Wanayasa', kecamatan: 'Wanayasa' },
+    // Tegalwaru Kecamatan
+    { name: 'Tegalwaru', kecamatan: 'Tegalwaru' },
+    // Jatiluhur Kecamatan
+    { name: 'Jatiluhur', kecamatan: 'Jatiluhur' },
+    // Sukatani Kecamatan
+    { name: 'Sukatani', kecamatan: 'Sukatani' },
+    // Maniis Kecamatan
+    { name: 'Maniis', kecamatan: 'Maniis' },
+    // Pasawahan Kecamatan
+    { name: 'Pasawahan', kecamatan: 'Pasawahan' },
+    // Bojong Kecamatan
+    { name: 'Bojong', kecamatan: 'Bojong' },
+    // Babakancikao Kecamatan
+    { name: 'Babakancikao', kecamatan: 'Babakancikao' },
+    // Bungursari Kecamatan
+    { name: 'Bungursari', kecamatan: 'Bungursari' },
+    { name: 'Salamjaya', kecamatan: 'Bungursari' },
+    { name: 'Salammulya', kecamatan: 'Bungursari' },
+    // Campaka Kecamatan
+    { name: 'Campaka', kecamatan: 'Campaka' },
+    // Cibatu Kecamatan
+    { name: 'Cibatu', kecamatan: 'Cibatu' },
+    // Cikarang Kecamatan
+    { name: 'Cikarang', kecamatan: 'Cikarang' },
+    // Cipeundeuy Kecamatan
+    { name: 'Cipeundeuy', kecamatan: 'Cipeundeuy' },
+    // Cipicung Kecamatan
+    { name: 'Cipicung', kecamatan: 'Cipicung' },
+    // Cisaat Kecamatan
+    { name: 'Cisaat', kecamatan: 'Cisaat' },
+    // Cisarua Kecamatan
+    { name: 'Cisarua', kecamatan: 'Cisarua' },
+    // Ciwangi Kecamatan
+    { name: 'Ciwangi', kecamatan: 'Ciwangi' },
+    // Pondoksalam Kecamatan
+    { name: 'Pondoksalam', kecamatan: 'Pondoksalam' },
+    { name: 'Pasawahananyar', kecamatan: 'Pasawahananyar' }
   ];
+
+  // Filter kelurahan based on selected kecamatan
+  const filteredKelurahanList = selectedKecamatan === 'All Kecamatan' 
+    ? kelurahanData.map(item => item.name)
+    : kelurahanData
+        .filter(item => item.kecamatan === selectedKecamatan)
+        .map(item => item.name);
 
   // Click outside handlers
   useEffect(() => {
@@ -131,6 +163,8 @@ export default function Sidebar({
 
   const handleKecamatanSelect = (kecamatan: string) => {
     setSelectedKecamatan(kecamatan);
+    // Reset kelurahan selection when kecamatan changes
+    setSelectedKelurahan('All Kelurahan/Desa');
     setShowKecamatanDropdown(false);
     console.log('Selected Kecamatan:', kecamatan);
   };
@@ -159,21 +193,21 @@ export default function Sidebar({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
-        {/* Peta Administratif Section */}
+        {/* Layer Administrasi Section */}
         <div className="mb-6">
           <button
-            onClick={() => toggleMenu('peta-administratif')}
+            onClick={() => toggleMenu('layer-administrasi')}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
           >
-            <span className="font-semibold text-gray-800">Peta Administratif</span>
-            {isMenuExpanded('peta-administratif') ? (
+            <span className="font-semibold text-gray-800">Layer Administrasi</span>
+            {isMenuExpanded('layer-administrasi') ? (
               <ChevronUp size={16} className="text-blue-600" />
             ) : (
               <ChevronDown size={16} className="text-blue-600" />
             )}
           </button>
 
-          {isMenuExpanded('peta-administratif') && (
+          {isMenuExpanded('layer-administrasi') && (
             <div className="mt-3 space-y-3">
               {/* Kecamatan Dropdown */}
               <div className="relative" ref={kecamatanRef}>
@@ -191,7 +225,7 @@ export default function Sidebar({
                       <button
                         key={index}
                         onClick={() => handleKecamatanSelect(kecamatan)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                        className="w-full px-3 py-2 text-left text-sm text-black hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
                       >
                         {kecamatan}
                       </button>
@@ -212,11 +246,11 @@ export default function Sidebar({
                 
                 {showKelurahanDropdown && (
                   <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {kelurahanList.map((kelurahan, index) => (
+                    {filteredKelurahanList.map((kelurahan, index) => (
                       <button
                         key={index}
                         onClick={() => handleKelurahanSelect(kelurahan)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                        className="w-full px-3 py-2 text-left text-sm text-black hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
                       >
                         {kelurahan}
                       </button>
@@ -228,21 +262,21 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Peta Existing Section */}
+        {/* Layer Selection Section */}
         <div className="mb-6">
           <button
-            onClick={() => toggleMenu('peta-existing')}
+            onClick={() => toggleMenu('layer-selection')}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
           >
-            <span className="font-semibold text-gray-800">Peta Existing</span>
-            {isMenuExpanded('peta-existing') ? (
+            <span className="font-semibold text-gray-800">Layer Selection</span>
+            {isMenuExpanded('layer-selection') ? (
               <ChevronUp size={16} className="text-blue-600" />
             ) : (
               <ChevronDown size={16} className="text-blue-600" />
             )}
           </button>
 
-          {isMenuExpanded('peta-existing') && (
+          {isMenuExpanded('layer-selection') && (
             <div className="mt-3 space-y-3">
               {/* Layer Checkboxes */}
               {Object.entries(layerConfigs).map(([layerId, config]) => (

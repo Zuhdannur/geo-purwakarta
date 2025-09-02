@@ -5,12 +5,14 @@ import dynamic from 'next/dynamic';
 
 // Dynamically import components to avoid SSR issues
 const Sidebar = dynamic(() => import('@/components/Sidebar'), { ssr: false });
-const Map = dynamic(() => import('@/components/Map'), { ssr: false });
+const MapboxMap = dynamic(() => import('@/components/MapboxMap'), { ssr: false });
 
 export default function Home() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [selectedLayers, setSelectedLayers] = useState<string[]>(['sebaran-rumah-komersil', 'kawasan-rawan-bencana']); // Default to match image
+  const [selectedLayers, setSelectedLayers] = useState<string[]>(['layer-administrasi']); // Default to Layer Administrasi only
   const [showBaseMap, setShowBaseMap] = useState<boolean>(false); // Default to false to match image
+  const [selectedKecamatan, setSelectedKecamatan] = useState<string>('All Kecamatan');
+  const [selectedKelurahan, setSelectedKelurahan] = useState<string>('All Kelurahan/Desa');
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -37,14 +39,20 @@ export default function Home() {
         setSelectedLayers={setSelectedLayers}
         showBaseMap={showBaseMap}
         setShowBaseMap={setShowBaseMap}
+        selectedKecamatan={selectedKecamatan}
+        setSelectedKecamatan={setSelectedKecamatan}
+        selectedKelurahan={selectedKelurahan}
+        setSelectedKelurahan={setSelectedKelurahan}
       />
       <div className="flex-1 relative">
-        <Map 
+        <MapboxMap 
           activeMenu={activeMenu}
           selectedLayers={selectedLayers}
           setSelectedLayers={setSelectedLayers}
           showBaseMap={showBaseMap}
           setShowBaseMap={setShowBaseMap}
+          selectedKecamatan={selectedKecamatan}
+          selectedKelurahan={selectedKelurahan}
         />
       </div>
     </div>

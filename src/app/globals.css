@@ -25,19 +25,151 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Custom animations for FeatureDrawer */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+/* Custom scrollbar for FeatureDrawer */
+.drawer-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
 /* Custom styles for polygon labels */
 .polygon-label {
   background: transparent !important;
   border: none !important;
+  z-index: 1000 !important;
 }
 
 .polygon-label div {
   white-space: nowrap;
   text-align: center;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(4px);
   transition: all 0.2s ease;
+  z-index: 1000 !important;
+  position: relative;
+  pointer-events: none;
+}
+
+/* Custom styles for polygon label tooltips */
+.polygon-label-tooltip {
+  background: white !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  z-index: 1000 !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+}
+
+.polygon-label-tooltip::before {
+  display: none !important;
+}
+
+/* Custom styles for polygon labels */
+.custom-polygon-label {
+  background: transparent !important;
+  border: none !important;
+  z-index: 1000 !important;
+}
+
+.custom-polygon-label div {
+  z-index: 1000 !important;
+  position: relative;
+}
+
+/* Administrative layer labels */
+.kecamatan-label {
+  background: transparent !important;
+  border: none !important;
+  z-index: 9999 !important;
+}
+
+.kecamatan-label div {
+  z-index: 9999 !important;
+  position: relative !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid #4a90e2 !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #1a1a1a !important;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3) !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  pointer-events: none !important;
+  text-shadow: 1px 1px 2px rgba(255,255,255,0.8) !important;
+}
+
+.kelurahan-label {
+  background: transparent !important;
+  border: none !important;
+  z-index: 9998 !important;
+}
+
+.kelurahan-label div {
+  z-index: 9998 !important;
+  position: relative !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #666 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  pointer-events: none !important;
 }
 
 /* Animation for drawer */
@@ -76,4 +208,22 @@ body {
 
 .drawer-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Mapbox GL JS styles */
+.mapboxgl-canvas {
+  border-radius: 0.5rem;
+}
+
+.mapboxgl-ctrl-group {
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.mapboxgl-ctrl-group button {
+  border-radius: 0.5rem;
+}
+
+.mapboxgl-ctrl-group button:hover {
+  background-color: #f3f4f6;
 }
