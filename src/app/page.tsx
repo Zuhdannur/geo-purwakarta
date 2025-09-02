@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import UploadShapefile from '@/components/UploadShapefile';
 
 // Dynamically import components to avoid SSR issues
 const Sidebar = dynamic(() => import('@/components/Sidebar'), { ssr: false });
@@ -46,7 +47,14 @@ export default function Home() {
         setSelectedKelurahan={setSelectedKelurahan}
       />
       <div className="flex-1 relative">
-       
+        <div className="absolute z-10 top-4 right-4">
+          <UploadShapefile onLoaded={({ id, name, data }) => {
+            // Only use state value; no unused setter
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const _ = name;
+            setUploadedLayers(prev => [...prev, { id, name, data }]);
+          }} />
+        </div>
         <MapboxMap 
           activeMenu={activeMenu}
           selectedLayers={selectedLayers}
@@ -55,7 +63,6 @@ export default function Home() {
           setShowBaseMap={setShowBaseMap}
           selectedKecamatan={selectedKecamatan}
           selectedKelurahan={selectedKelurahan}
-          // @ts-expect-error extend props for uploaded layers
           uploadedLayers={uploadedLayers}
         />
       </div>
