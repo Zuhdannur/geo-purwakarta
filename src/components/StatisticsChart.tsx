@@ -9,9 +9,9 @@ interface StatisticsChartProps {
   onClose: () => void;
 }
 
-interface ChartData {
+interface GroupedData {
   kecamatan: string;
-  count: number;
+  [key: string]: string | number; // Dynamic year keys
 }
 
 interface Point {
@@ -24,7 +24,7 @@ interface Polygon {
 }
 
 export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProps) {
-  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [chartData, setChartData] = useState<GroupedData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -85,10 +85,19 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
       
       // Extract kecamatan boundaries from admin data
       if (adminData.features) {
-        adminData.features.forEach((feature: any) => {
+        console.log('Debug - Admin features found:', adminData.features.length);
+        adminData.features.forEach((feature: any, index: number) => {
           if (feature.properties && feature.properties.KECAMATAN && feature.geometry) {
             const kecamatanName = feature.properties.KECAMATAN;
             kecamatanNames.add(kecamatanName);
+            
+            // Debug: Log first few admin features
+            if (index < 3) {
+              console.log(`Debug - Admin feature ${index}:`, {
+                kecamatan: kecamatanName,
+                properties: feature.properties
+              });
+            }
             
             // Convert coordinates to our Point format
             if (feature.geometry.type === 'Polygon' && feature.geometry.coordinates[0]) {
@@ -101,78 +110,118 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
             }
           }
         });
+        console.log('Debug - Total kecamatan boundaries created:', kecamatanBoundaries.size);
+      } else {
+        console.log('Debug - No admin features found');
       }
 
-      // Count rumah komersil features per kecamatan
-      const kecamatanCounts = new Map<string, number>();
+      // Group data by kecamatan and year
+      const groupedData = new Map<string, Map<string, number>>();
+      const allYears = new Set<string>();
       
-      // Initialize counts for all kecamatan
-      kecamatanNames.forEach((kecamatanName) => {
-        kecamatanCounts.set(kecamatanName, 0);
-      });
-
-      // Count features in rumah komersil data
+      // Process rumah komersil features first to collect years and kecamatan
       if (rumahKomersilData.features) {
-        rumahKomersilData.features.forEach((feature: any) => {
+        console.log('Debug - Processing features, total count:', rumahKomersilData.features.length);
+        
+        rumahKomersilData.features.forEach((feature: any, index: number) => {
           if (feature.geometry && feature.geometry.type === 'Polygon') {
-            // Calculate centroid of the commercial building
-            const centroid = calculateCentroid(feature.geometry.coordinates[0]);
+            // Debug: Log first few features to see their properties
+            if (index < 3) {
+              console.log(`Debug - Feature ${index} properties:`, feature.properties);
+            }
             
-            // Check which kecamatan this centroid falls into
-            let foundKecamatan = false;
-            for (const [kecamatanName, boundary] of kecamatanBoundaries) {
-              if (pointInPolygon(centroid, boundary)) {
-                const currentCount = kecamatanCounts.get(kecamatanName) || 0;
-                kecamatanCounts.set(kecamatanName, currentCount + 1);
-                foundKecamatan = true;
-                break;
+            // Get the year from feature properties
+            const tahun = feature.properties?.TAHUN || feature.properties?.tahun || 'Unknown';
+            allYears.add(String(tahun));
+            
+            // Try to get kecamatan from feature properties first (more reliable)
+            let kecamatanName = feature.properties?.KECAMATAN || feature.properties?.kecamatan;
+            
+            // Debug: Log kecamatan detection
+            if (index < 3) {
+              console.log(`Debug - Feature ${index} kecamatan detection:`, {
+                fromProperties: feature.properties?.KECAMATAN || feature.properties?.kecamatan,
+                finalKecamatan: kecamatanName
+              });
+            }
+            
+            // If no kecamatan in properties, try spatial analysis
+            if (!kecamatanName) {
+              // Calculate centroid of the commercial building
+              const centroid = calculateCentroid(feature.geometry.coordinates[0]);
+              
+              // Check which kecamatan this centroid falls into
+              for (const [adminKecamatanName, boundary] of kecamatanBoundaries) {
+                if (pointInPolygon(centroid, boundary)) {
+                  kecamatanName = adminKecamatanName;
+                  break;
+                }
               }
             }
             
-            // If no kecamatan found, assign to the first one (fallback)
-            if (!foundKecamatan && kecamatanNames.size > 0) {
-              const firstKecamatan = Array.from(kecamatanNames)[0];
-              const currentCount = kecamatanCounts.get(firstKecamatan) || 0;
-              kecamatanCounts.set(firstKecamatan, currentCount + 1);
+            // If still no kecamatan found, assign to the first one (fallback)
+            if (!kecamatanName && kecamatanNames.size > 0) {
+              kecamatanName = Array.from(kecamatanNames)[0];
+            }
+            
+            // Add to grouped data if we have a kecamatan
+            if (kecamatanName) {
+              // Initialize kecamatan if it doesn't exist
+              if (!groupedData.has(kecamatanName)) {
+                groupedData.set(kecamatanName, new Map<string, number>());
+              }
+              
+              const kecamatanYearMap = groupedData.get(kecamatanName);
+              if (kecamatanYearMap) {
+                const currentCount = kecamatanYearMap.get(String(tahun)) || 0;
+                kecamatanYearMap.set(String(tahun), currentCount + 1);
+              }
+            } else {
+              console.log(`Debug - Feature ${index} has no kecamatan assigned`);
             }
           }
         });
       }
 
-      // Convert to chart data format
-      const chartDataArray: ChartData[] = Array.from(kecamatanCounts.entries())
-        .map(([kecamatan, count]) => ({
-          kecamatan,
-          count
-        }))
-        .sort((a, b) => b.count - a.count);
+      // Debug: Log what we found
+      console.log('Debug - Features processed:', rumahKomersilData.features?.length || 0);
+      console.log('Debug - Kecamatan names from admin:', Array.from(kecamatanNames));
+      console.log('Debug - Kecamatan names from features:', Array.from(groupedData.keys()));
 
+      // Convert to chart data format for grouped bar chart
+      const sortedYears = Array.from(allYears).sort();
+      
+      // Debug logging
+      console.log('Debug - All Years found:', Array.from(allYears));
+      console.log('Debug - Grouped Data:', groupedData);
+      console.log('Debug - Sorted Years:', sortedYears);
+      
+      const chartDataArray: GroupedData[] = Array.from(groupedData.entries())
+        .map(([kecamatan, yearMap]) => {
+          const data: GroupedData = { kecamatan };
+          sortedYears.forEach(year => {
+            data[year] = yearMap.get(year) || 0;
+          });
+          return data;
+        })
+        .sort((a, b) => {
+          // Sort by total count across all years
+          const totalA = sortedYears.reduce((sum, year) => sum + (a[year] as number), 0);
+          const totalB = sortedYears.reduce((sum, year) => sum + (b[year] as number), 0);
+          return totalB - totalA;
+        });
+
+      console.log('Debug - Final Chart Data:', chartDataArray);
       setChartData(chartDataArray);
     } catch (error) {
       console.error('Error analyzing data:', error);
       // Fallback to mock data if there's an error
-      const fallbackData: ChartData[] = [
-        { kecamatan: 'Purwakarta', count: 45 },
-        { kecamatan: 'Plered', count: 32 },
-        { kecamatan: 'Darangdan', count: 28 },
-        { kecamatan: 'Wanayasa', count: 35 },
-        { kecamatan: 'Tegalwaru', count: 22 },
-        { kecamatan: 'Jatiluhur', count: 18 },
-        { kecamatan: 'Sukatani', count: 25 },
-        { kecamatan: 'Maniis', count: 30 },
-        { kecamatan: 'Pasawahan', count: 27 },
-        { kecamatan: 'Bojong', count: 20 },
-        { kecamatan: 'Babakancikao', count: 33 },
-        { kecamatan: 'Bungursari', count: 40 },
-        { kecamatan: 'Campaka', count: 15 },
-        { kecamatan: 'Cibatu', count: 23 },
-        { kecamatan: 'Cikarang', count: 19 },
-        { kecamatan: 'Cipeundeuy', count: 16 },
-        { kecamatan: 'Cipicung', count: 21 },
-        { kecamatan: 'Cisaat', count: 24 },
-        { kecamatan: 'Cisarua', count: 17 },
-        { kecamatan: 'Ciwangi', count: 26 },
-        { kecamatan: 'Pondoksalam', count: 29 }
+      const fallbackData: GroupedData[] = [
+        { kecamatan: 'Purwakarta', '2020': 15, '2021': 20, '2022': 10 },
+        { kecamatan: 'Plered', '2020': 12, '2021': 15, '2022': 5 },
+        { kecamatan: 'Darangdan', '2020': 10, '2021': 12, '2022': 6 },
+        { kecamatan: 'Wanayasa', '2020': 18, '2021': 12, '2022': 5 },
+        { kecamatan: 'Tegalwaru', '2020': 8, '2021': 10, '2022': 4 }
       ];
       setChartData(fallbackData);
     } finally {
@@ -229,16 +278,19 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip 
-                    formatter={(value: any) => [`${value} buildings`, 'Count']}
+                    formatter={(value: any, name: string) => [`${value} buildings`, name]}
                     labelFormatter={(label: string) => `Kecamatan: ${label}`}
                   />
                   <Legend />
-                  <Bar 
-                    dataKey="count" 
-                    fill="#3B82F6" 
-                    name="Commercial Buildings"
-                    radius={[4, 4, 0, 0]}
-                  />
+                  {chartData.length > 0 && Object.keys(chartData[0]).filter(key => key !== 'kecamatan').map((year, index) => (
+                    <Bar 
+                      key={year}
+                      dataKey={year} 
+                      fill={`hsl(${index * 60}, 70%, 50%)`}
+                      name={`Year ${year}`}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -251,13 +303,25 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-semibold text-gray-800 mb-2">Total Buildings</h4>
                 <p className="text-2xl font-bold text-green-600">
-                  {chartData.reduce((sum, item) => sum + item.count, 0)}
+                  {chartData.length > 0 
+                    ? chartData.reduce((sum, item) => {
+                        const itemSum = Object.keys(item).filter(key => key !== 'kecamatan').reduce((yearSum, year) => yearSum + (item[year] as number), 0);
+                        return sum + itemSum;
+                      }, 0)
+                    : 0
+                  }
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-semibold text-gray-800 mb-2">Average per Kecamatan</h4>
                 <p className="text-2xl font-bold text-purple-600">
-                  {Math.round(chartData.reduce((sum, item) => sum + item.count, 0) / chartData.length)}
+                  {chartData.length > 0 
+                    ? Math.round(chartData.reduce((sum, item) => {
+                        const itemSum = Object.keys(item).filter(key => key !== 'kecamatan').reduce((yearSum, year) => yearSum + (item[year] as number), 0);
+                        return sum + itemSum;
+                      }, 0) / chartData.length)
+                    : 0
+                  }
                 </p>
               </div>
             </div>
@@ -266,16 +330,18 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
               <h4 className="font-semibold text-gray-800 mb-3">Top 5 Kecamatan by Commercial Buildings</h4>
               <div className="space-y-2">
                 {chartData
-                  .sort((a, b) => b.count - a.count)
                   .slice(0, 5)
-                  .map((item, index) => (
-                    <div key={item.kecamatan} className="flex justify-between items-center">
-                      <span className="text-gray-700">
-                        {index + 1}. {item.kecamatan}
-                      </span>
-                      <span className="font-semibold text-blue-600">{item.count} buildings</span>
-                    </div>
-                  ))}
+                  .map((item, index) => {
+                    const totalBuildings = Object.keys(item).filter(key => key !== 'kecamatan').reduce((sum, year) => sum + (item[year] as number), 0);
+                    return (
+                      <div key={item.kecamatan} className="flex justify-between items-center">
+                        <span className="text-gray-700">
+                          {index + 1}. {item.kecamatan}
+                        </span>
+                        <span className="font-semibold text-blue-600">{totalBuildings} buildings</span>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
 

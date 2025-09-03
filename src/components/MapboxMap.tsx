@@ -17,6 +17,7 @@ interface MapboxMapProps {
   selectedKecamatan: string;
   selectedKelurahan: string;
   uploadedLayers?: Array<{ id: string; name: string; data: any }>;
+  onFeatureUpdated?: () => void;
 }
 
 interface LayerConfig {
@@ -85,7 +86,8 @@ export default function MapboxMap({
   setShowBaseMap,
   selectedKecamatan,
   selectedKelurahan,
-  uploadedLayers = []
+  uploadedLayers = [],
+  onFeatureUpdated
 }: MapboxMapProps) {
   
   // Debug state changes
@@ -435,6 +437,14 @@ export default function MapboxMap({
 
     return () => clearTimeout(timer);
   }, [selectedLayers, mapReady, layers]);
+
+  // Handle feature updates
+  useEffect(() => {
+    if (onFeatureUpdated) {
+      // Refresh commercial buildings layer when feature is updated
+      refreshCommercialBuildingsLayer();
+    }
+  }, [onFeatureUpdated]);
 
 
 
@@ -945,6 +955,13 @@ export default function MapboxMap({
         if (layerId === 'layer-administrasi') {
           addLabels(layerId, data);
         }
+        
+        // Add labels for commercial buildings layer
+        if (layerId === 'layer-sebaran-rumah-komersil') {
+          console.log('About to add commercial building labels...');
+          addCommercialBuildingLabels(layerId, data);
+          console.log('Finished adding commercial building labels');
+        }
 
         // Note: Click events are handled globally in the map click handler
 
@@ -979,7 +996,7 @@ export default function MapboxMap({
 
     try {
       // Get all layers for this specific layer group
-      const layerSuffixes = ['-fill', '-outline', '-highlighted', '-highlighted-outline', '-hovered', '-hovered-outline'];
+      const layerSuffixes = ['-fill', '-outline', '-highlighted', '-highlighted-outline', '-hovered', '-hovered-outline', '-labels', '-labels-commercial', '-labels-kecamatan', '-labels-kelurahan'];
       const layersToOrder = layerSuffixes
         .map(suffix => `${layerId}${suffix}`)
         .filter(id => map.current!.getLayer(id));
@@ -1008,7 +1025,20 @@ export default function MapboxMap({
       }
 
       // Move all layers for this layer group to the correct position
-      layersToOrder.forEach((layerId, index) => {
+      // Sort layers to ensure proper stacking: fill -> outline -> highlighted -> labels
+      const sortedLayers = layersToOrder.sort((a, b) => {
+        const getLayerPriority = (layerId: string) => {
+          if (layerId.includes('-fill')) return 1;
+          if (layerId.includes('-outline')) return 2;
+          if (layerId.includes('-highlighted')) return 3;
+          if (layerId.includes('-hovered')) return 4;
+          if (layerId.includes('-labels')) return 5; // Labels should be on top
+          return 6;
+        };
+        return getLayerPriority(a) - getLayerPriority(b);
+      });
+
+      sortedLayers.forEach((layerId, index) => {
         try {
           if (targetPosition === 0) {
             // For first position, move to the beginning
@@ -1067,6 +1097,70 @@ export default function MapboxMap({
       console.log('All layers reordered successfully');
     } catch (error) {
       console.error('Error reordering all layers:', error);
+    }
+  };
+
+  // Refresh commercial buildings layer data
+  const refreshCommercialBuildingsLayer = async () => {
+    if (!map.current || !layers['layer-sebaran-rumah-komersil']) return;
+
+    try {
+      console.log('Refreshing commercial buildings layer data...');
+      
+      // Fetch updated data
+      const response = await fetch('/new data/rumah_komersil.geojson');
+      if (!response.ok) {
+        console.error('Failed to fetch updated data');
+        return;
+      }
+
+      const updatedData = await response.json();
+      
+      // Update the source data
+      const source = map.current.getSource('layer-sebaran-rumah-komersil') as mapboxgl.GeoJSONSource;
+      if (source && typeof source.setData === 'function') {
+        source.setData(updatedData);
+        console.log('Commercial buildings layer data refreshed successfully');
+      }
+      
+      // Also refresh the labels
+      const labelSource = map.current.getSource('layer-sebaran-rumah-komersil-labels') as mapboxgl.GeoJSONSource;
+      if (labelSource && typeof labelSource.setData === 'function') {
+        // Recreate label data from updated source
+        const labelData: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: updatedData.features.map((feature: any) => {
+            const center = getPolygonCenter(feature.geometry.coordinates);
+            if (center) {
+              // Calculate area in square meters
+              const area = calculatePolygonArea(feature.geometry.coordinates);
+              const areaText = area ? `${Math.round(area)} m²` : '';
+              
+              // Combine name and area with line break
+              const labelText = feature.properties.namaKawasanPerumahan || feature.properties.nama_kawasan || 'Unnamed';
+              const combinedLabel = areaText ? `${labelText}\n${areaText}` : labelText;
+              
+              return {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: center
+                },
+                properties: {
+                  combinedLabel: combinedLabel,
+                  featureId: feature.properties.feature_id || feature.properties.OBJECTID || feature.properties.Id
+                }
+              } as GeoJSON.Feature;
+            }
+            return null;
+          }).filter(Boolean) as GeoJSON.Feature[]
+        };
+        
+        labelSource.setData(labelData);
+        console.log('Commercial buildings labels refreshed successfully');
+      }
+    } catch (error) {
+      console.error('Error refreshing commercial buildings layer:', error);
     }
   };
 
@@ -1194,6 +1288,105 @@ export default function MapboxMap({
     }
   };
 
+  // Add labels for commercial building features
+  const addCommercialBuildingLabels = (layerId: string, data: any) => {
+    if (!map.current) return;
+
+    console.log('Adding commercial building labels for layer:', layerId);
+    console.log('Data features count:', data.features?.length || 0);
+
+    // Add label source for commercial buildings
+    const labelData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: data.features.map((feature: any, index: number) => {
+        const center = getPolygonCenter(feature.geometry.coordinates);
+        if (center) {
+          const labelText = feature.properties.namaKawasanPerumahan || feature.properties.nama_kawasan || 'Unnamed';
+          
+          // Calculate area in square meters
+          const area = calculatePolygonArea(feature.geometry.coordinates);
+          const areaText = area ? `${Math.round(area)} m²` : '';
+          
+          // Combine name and area with line break
+          const combinedLabel = areaText ? `${labelText}\n${areaText}` : labelText;
+          
+          console.log(`Feature ${index}: center=${center}, label="${labelText}", area=${areaText}`);
+          
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: center
+            },
+            properties: {
+              combinedLabel: combinedLabel,
+              featureId: feature.properties.feature_id || feature.properties.OBJECTID || feature.properties.Id
+            }
+          } as GeoJSON.Feature;
+        } else {
+          console.log(`Feature ${index}: could not calculate center`);
+        }
+        return null;
+      }).filter(Boolean) as GeoJSON.Feature[]
+    };
+
+    console.log('Label data created:', labelData.features.length, 'labels');
+
+    const labelSourceId = `${layerId}-labels`;
+    const existingLabelSource = map.current.getSource(labelSourceId) as mapboxgl.GeoJSONSource | undefined;
+    if (existingLabelSource) {
+      if (typeof existingLabelSource.setData === 'function') {
+        existingLabelSource.setData(labelData as any);
+        console.log('Updated existing label source');
+      }
+    } else {
+      map.current.addSource(labelSourceId, {
+        type: 'geojson',
+        data: labelData
+      });
+      console.log('Created new label source:', labelSourceId);
+    }
+
+    // Add combined commercial building labels
+    const labelLayerId = `${layerId}-labels-commercial`;
+    if (!map.current.getLayer(labelLayerId)) {
+      map.current.addLayer({
+        id: labelLayerId,
+        type: 'symbol',
+        source: `${layerId}-labels`,
+        filter: ['has', 'combinedLabel'],
+        layout: {
+          'text-field': ['get', 'combinedLabel'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': 11,
+          'text-anchor': 'center',
+          'text-offset': [0, 0], // At center
+          'text-allow-overlap': true,
+          'text-ignore-placement': true
+        },
+        paint: {
+          'text-color': '#8B4513', // Brown color for commercial buildings
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        }
+      });
+      console.log('Created combined label layer:', labelLayerId);
+      
+      // Ensure the label layer is positioned above the fill layer
+      try {
+        const fillLayerId = `${layerId}-fill`;
+        if (map.current.getLayer(fillLayerId)) {
+          map.current.moveLayer(labelLayerId, fillLayerId);
+          console.log('Moved label layer above fill layer');
+        }
+      } catch (e) {
+        console.log('Could not move label layer:', e);
+      }
+    } else {
+      console.log('Label layer already exists:', labelLayerId);
+    }
+  };
+
   // Helper to get the bounding box of a GeoJSON feature
   const getFeatureBounds = (geometry: any): mapboxgl.LngLatBoundsLike | null => {
     if (!geometry || !geometry.coordinates) return null;
@@ -1243,84 +1436,83 @@ export default function MapboxMap({
 
   // Helper to get the center of a polygon
   const getPolygonCenter = (coordinates: any) => {
-    if (!coordinates || coordinates.length === 0) return null;
-
-    let totalArea = 0;
-    let weightedX = 0;
-    let weightedY = 0;
-
-    // Handle MultiPolygon coordinates
-    for (const polygon of coordinates) {
-      // Use the first ring (exterior boundary) for centroid calculation
-      const ring = polygon[0];
-      if (!ring || ring.length < 3) continue;
-
-      // Calculate centroid using shoelace formula
-      let area = 0;
-      let centroidX = 0;
-      let centroidY = 0;
-
-      for (let i = 0; i < ring.length - 1; i++) {
-        const coord1 = ring[i];
-        const coord2 = ring[i + 1];
-        
-        // Extract longitude and latitude (first two values)
-        const x1 = coord1[0]; // longitude
-        const y1 = coord1[1]; // latitude
-        const x2 = coord2[0]; // longitude
-        const y2 = coord2[1]; // latitude
-        
-        if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
-            !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
-          continue;
-        }
-
-        const cross = x1 * y2 - x2 * y1;
-        area += cross;
-        centroidX += (x1 + x2) * cross;
-        centroidY += (y1 + y2) * cross;
-      }
-
-      if (Math.abs(area) > 1e-10) {
-        area /= 2;
-        centroidX /= (6 * area);
-        centroidY /= (6 * area);
-        
-        totalArea += Math.abs(area);
-        weightedX += centroidX * Math.abs(area);
-        weightedY += centroidY * Math.abs(area);
-      }
+    if (!coordinates || coordinates.length === 0) {
+      console.log('getPolygonCenter: No coordinates provided');
+      return null;
     }
 
-    if (totalArea > 0) {
-      const finalX = weightedX / totalArea;
-      const finalY = weightedY / totalArea;
+    console.log('getPolygonCenter input:', {
+      coordinatesLength: coordinates.length,
+      firstPolygon: coordinates[0],
+      firstPolygonLength: coordinates[0]?.length,
+      firstRing: coordinates[0]?.[0],
+      firstRingLength: coordinates[0]?.[0]?.length
+    });
+
+    // The coordinates structure is [[[x1,y1], [x2,y2], ...]] for Polygon
+    // So coordinates[0] is the ring array, not coordinates[0][0]
+    const ring = coordinates[0];
+    if (!ring || ring.length < 3) {
+      console.log('getPolygonCenter: Invalid ring:', { ring, length: ring?.length });
+      return null;
+    }
+
+    console.log('getPolygonCenter: Processing ring with', ring.length, 'coordinates');
+
+    // Calculate centroid using shoelace formula
+    let area = 0;
+    let centroidX = 0;
+    let centroidY = 0;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      const coord1 = ring[i];
+      const coord2 = ring[i + 1];
       
-      // Validate the result
-      if (!isNaN(finalX) && !isNaN(finalY) && isFinite(finalX) && isFinite(finalY)) {
-        return [finalX, finalY];
+      // Extract longitude and latitude (first two values)
+      const x1 = coord1[0]; // longitude
+      const y1 = coord1[1]; // latitude
+      const x2 = coord2[0]; // longitude
+      const y2 = coord2[1]; // latitude
+      
+      if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
+          !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+        console.log('getPolygonCenter: Invalid coordinate values:', { coord1, coord2 });
+        continue;
       }
+
+      const cross = x1 * y2 - x2 * y1;
+      area += cross;
+      centroidX += (x1 + x2) * cross;
+      centroidY += (y1 + y2) * cross;
+    }
+
+    if (Math.abs(area) > 1e-10) {
+      area /= 2;
+      centroidX /= (6 * area);
+      centroidY /= (6 * area);
+      
+      console.log('getPolygonCenter: Centroid calculated successfully:', [centroidX, centroidY]);
+      return [centroidX, centroidY];
+    } else {
+      console.log('getPolygonCenter: Area too small for centroid, trying bounding box...');
     }
 
     // Fallback to bounding box center if centroid calculation fails
+    console.log('getPolygonCenter: Trying bounding box fallback...');
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     let validCoords = 0;
 
-    for (const polygon of coordinates) {
-      for (const ring of polygon) {
-        for (const coord of ring) {
-          if (Array.isArray(coord) && coord.length >= 2) {
-            const x = coord[0]; // longitude
-            const y = coord[1]; // latitude
-            
-            if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
-              minX = Math.min(minX, x);
-              maxX = Math.max(maxX, x);
-              minY = Math.min(minY, y);
-              maxY = Math.max(maxY, y);
-              validCoords++;
-            }
-          }
+    for (const coord of ring) {
+      if (Array.isArray(coord) && coord.length >= 2) {
+        const x = coord[0]; // longitude
+        const y = coord[1]; // latitude
+        
+        if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+          validCoords++;
         }
       }
     }
@@ -1330,11 +1522,85 @@ export default function MapboxMap({
       const centerY = minY + (maxY - minY) / 2;
       
       if (!isNaN(centerX) && !isNaN(centerY) && isFinite(centerX) && isFinite(centerY)) {
+        console.log('getPolygonCenter: Bounding box center calculated:', [centerX, centerY]);
         return [centerX, centerY];
       }
     }
 
+    console.log('getPolygonCenter: All methods failed');
     return null;
+  };
+
+  // Helper to calculate polygon area in square meters
+  const calculatePolygonArea = (coordinates: any): number | null => {
+    if (!coordinates || coordinates.length === 0) {
+      return null;
+    }
+
+    try {
+      // For Polygon, coordinates[0] is the ring array
+      const ring = coordinates[0];
+      if (!ring || ring.length < 3) {
+        return null;
+      }
+
+      // Calculate area using shoelace formula
+      let area = 0;
+      
+      for (let i = 0; i < ring.length - 1; i++) {
+        const coord1 = ring[i];
+        const coord2 = ring[i + 1];
+        
+        if (Array.isArray(coord1) && Array.isArray(coord2) && 
+            coord1.length >= 2 && coord2.length >= 2) {
+          const x1 = coord1[0]; // longitude
+          const y1 = coord1[1]; // latitude
+          const x2 = coord2[0]; // longitude
+          const y2 = coord2[1]; // latitude
+          
+          if (!isNaN(x1) && !isNaN(y1) && !isNaN(x2) && !isNaN(y2) && 
+              isFinite(x1) && isFinite(y1) && isFinite(x2) && isFinite(y2)) {
+            const cross = x1 * y2 - x2 * y1;
+            area += cross;
+          }
+        }
+      }
+
+      // Close the polygon by connecting last point to first
+      if (ring.length > 0) {
+        const firstCoord = ring[0];
+        const lastCoord = ring[ring.length - 1];
+        
+        if (Array.isArray(firstCoord) && Array.isArray(lastCoord) && 
+            firstCoord.length >= 2 && lastCoord.length >= 2) {
+          const x1 = lastCoord[0];
+          const y1 = lastCoord[1];
+          const x2 = firstCoord[0];
+          const y2 = firstCoord[1];
+          
+          if (!isNaN(x1) && !isNaN(y1) && !isNaN(x2) && !isNaN(y2) && 
+              isFinite(x1) && isFinite(y1) && isFinite(x2) && isFinite(y2)) {
+            const cross = x1 * y2 - x2 * y1;
+            area += cross;
+          }
+        }
+      }
+
+      // Convert to absolute area and approximate to square meters
+      // This is a rough approximation - for more accurate results, 
+      // you'd need proper geodesic calculations
+      const areaInDegrees = Math.abs(area) / 2;
+      
+      // Rough conversion: 1 degree ≈ 111,000 meters at the equator
+      // This is an approximation and will vary by latitude
+      const metersPerDegree = 111000;
+      const areaInSquareMeters = areaInDegrees * metersPerDegree * metersPerDegree;
+      
+      return areaInSquareMeters;
+    } catch (error) {
+      console.error('Error calculating polygon area:', error);
+      return null;
+    }
   };
 
   const closeFeatureDrawer = () => {
@@ -1390,6 +1656,7 @@ export default function MapboxMap({
         onClose={closeFeatureDrawer}
         featureData={featureDrawer.featureData}
         layerName={featureDrawer.layerName}
+        onFeatureUpdated={refreshCommercialBuildingsLayer}
       />
     </div>
   );
