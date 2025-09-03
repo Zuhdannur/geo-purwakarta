@@ -57,6 +57,26 @@ export default function FeatureDrawer({
                     Feature Summary
                   </h4>
                   <div className="space-y-3 text-sm">
+                    {/* Commercial Buildings specific properties */}
+                    {featureData.Id && (
+                      <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg border border-blue-100/50">
+                        <span className="text-blue-700 font-medium">Building ID:</span>
+                        <span className="text-blue-800 font-semibold">{featureData.Id}</span>
+                      </div>
+                    )}
+                    {featureData.L && (
+                      <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg border border-blue-100/50">
+                        <span className="text-blue-700 font-medium">Area (m²):</span>
+                        <span className="text-blue-800 font-semibold">{Number(featureData.L).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {featureData.LUAS && (
+                      <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg border border-blue-100/50">
+                        <span className="text-blue-700 font-medium">Area (m²):</span>
+                        <span className="text-blue-800 font-semibold">{Number(featureData.LUAS).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {/* Administrative properties */}
                     {featureData.WADMKC && (
                       <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg border border-blue-100/50">
                         <span className="text-blue-700 font-medium">Kecamatan:</span>

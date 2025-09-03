@@ -21,6 +21,11 @@ export default function Home() {
     setIsClient(true);
   }, []);
 
+  // Debug state changes
+  useEffect(() => {
+    console.log('Main page - selectedLayers changed:', selectedLayers);
+  }, [selectedLayers]);
+
   if (!isClient) {
     return (
       <div className="flex h-screen bg-gray-100 items-center justify-center">
@@ -47,14 +52,7 @@ export default function Home() {
         setSelectedKelurahan={setSelectedKelurahan}
       />
       <div className="flex-1 relative">
-        <div className="absolute z-10 top-4 right-4">
-          <UploadShapefile onLoaded={({ id, name, data }) => {
-            // Only use state value; no unused setter
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const _ = name;
-            setUploadedLayers(prev => [...prev, { id, name, data }]);
-          }} />
-        </div>
+        
         <MapboxMap 
           activeMenu={activeMenu}
           selectedLayers={selectedLayers}

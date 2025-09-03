@@ -45,7 +45,7 @@ const layerConfigs: { [key: string]: LayerConfig } = {
   'layer-kawasan-lahan-terbangun': {
     id: 'layer-kawasan-lahan-terbangun',
     name: 'Kawasan Lahan Terbangun',
-    url: '/data/kawasan_terbangun.geojson',
+    url: '/new data/kawasan_terbangun.geojson',
     color: '#16a085',
     outlineColor: '#0e6f5c'
   },
@@ -54,9 +54,9 @@ const layerConfigs: { [key: string]: LayerConfig } = {
     name: 'Kawasan Rawan Bencana',
     // Map to available datasets; missing ones will be skipped gracefully
     url: [
-      '/data/krb_gempa_bumi.geojson',
-      '/data/layer_kawasan_rawan_bencana_gerakan_tanah.geojson',
-      '/data/layer_kawasan_renacan_banjir.geojson'
+      '/new data/layer_kawasan_rawan_bencana_gempa_bumi.geojson',
+      '/new data/layer_kawasan_rawan_bencana_gerakan_tanah.geojson',
+      '/new data/layer_kawasan_rencana_bencana_banjir.geojson'
     ],
     color: '#c0392b',
     outlineColor: '#7e261d'
@@ -64,14 +64,14 @@ const layerConfigs: { [key: string]: LayerConfig } = {
   'layer-kawasan-rencana-pola-ruang': {
     id: 'layer-kawasan-rencana-pola-ruang',
     name: 'Kawasan Rencana Pola Ruang',
-    url: '/data/rencana_pola_ruang.geojson',
+    url: '/new data/layer_rencana_pola_ruang.geojson',
     color: '#8e44ad',
     outlineColor: '#5e2e73'
   },
   'layer-kemiringan-lereng': {
     id: 'layer-kemiringan-lereng',
     name: 'Kemiringan Lereng',
-    url: '/data/kemiringan_lereng.geojson',
+    url: '/new data/layer_kemiringan_lereng.geojson',
     color: '#27ae60',
     outlineColor: '#1c7a43'
   }
@@ -87,6 +87,11 @@ export default function MapboxMap({
   selectedKelurahan,
   uploadedLayers = []
 }: MapboxMapProps) {
+  
+  // Debug state changes
+  useEffect(() => {
+    console.log('MapboxMap - selectedLayers changed:', selectedLayers);
+  }, [selectedLayers]);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const hoveredRef = useRef<{ layerId: string; featureId: any } | null>(null);
@@ -105,7 +110,7 @@ export default function MapboxMap({
     layerName: ''
   });
 
-  // Initialize map
+  // Initialize map (only once)
   useEffect(() => {
     if (map.current) return; // Initialize map only once
 
@@ -126,106 +131,6 @@ export default function MapboxMap({
         console.log('map loaded');
       });
 
-      // Add click event for feature selection
-      map.current.on('click', (e) => {
-        console.log('map clicked', e);
-        console.log('isStyleLoaded', map.current?.isStyleLoaded());
-        // Only handle clicks if style is loaded and layers are selected
-        if (map.current?.isStyleLoaded() && selectedLayers.length > 0) {
-          handleFeatureClick(e);
-        }
-      });
-
-      // Add hover effects (cursor change + per-feature hover highlight) with safe layer checks
-      map.current.on('mousemove', (e) => {
-        if (!map.current || !map.current.isStyleLoaded()) return;
-
-        try {
-          const availableLayers = selectedLayers
-            .map(layerId => `${layerId}-fill`)
-            .filter(layerName => map.current!.getLayer(layerName));
-
-          if (availableLayers.length === 0) {
-            // Clear previous hover highlight if any
-            if (hoveredRef.current) {
-              const prev = hoveredRef.current;
-              if (map.current.getLayer(`${prev.layerId}-hovered`)) {
-                map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
-              }
-              if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
-                map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
-              }
-              hoveredRef.current = null;
-            }
-            map.current!.getCanvas().style.cursor = '';
-            return;
-          }
-
-          const features = map.current!.queryRenderedFeatures(e.point, {
-            layers: availableLayers
-          });
-
-          if (features.length > 0) {
-            const hovered = features[0] as any;
-            if (!hovered || !hovered.layer || !hovered.properties) {
-              return;
-            }
-
-            // Determine base layer id
-            let layerId = hovered.layer.id as string;
-            if (layerId.includes('-fill')) layerId = layerId.replace('-fill', '');
-            else if (layerId.includes('-outline')) layerId = layerId.replace('-outline', '');
-            else if (layerId.includes('-highlighted')) layerId = layerId.replace('-highlighted', '');
-            else if (layerId.includes('-hovered')) layerId = layerId.replace('-hovered', '');
-
-            const props = hovered.properties as Record<string, any>;
-            const featureId = props.OBJECTID || `${props.WADMKC}-${props.WADMKD}`;
-
-            // Skip if this feature is the same as currently hovered
-            if (!hoveredRef.current || hoveredRef.current.layerId !== layerId || hoveredRef.current.featureId !== featureId) {
-              // Clear previous hover if different
-              if (hoveredRef.current) {
-                const prev = hoveredRef.current;
-                if (map.current.getLayer(`${prev.layerId}-hovered`)) {
-                  map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
-                }
-                if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
-                  map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
-                }
-              }
-
-              // Apply hover filters on current layer if present
-              if (map.current.getLayer(`${layerId}-hovered`)) {
-                map.current.setFilter(`${layerId}-hovered`, ['==', 'OBJECTID', featureId]);
-              }
-              if (map.current.getLayer(`${layerId}-hovered-outline`)) {
-                map.current.setFilter(`${layerId}-hovered-outline`, ['==', 'OBJECTID', featureId]);
-              }
-
-              hoveredRef.current = { layerId, featureId };
-            }
-
-            map.current!.getCanvas().style.cursor = 'pointer';
-          } else {
-            // Clear previous hover highlight when no feature under cursor
-            if (hoveredRef.current) {
-              const prev = hoveredRef.current;
-              if (map.current.getLayer(`${prev.layerId}-hovered`)) {
-                map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
-              }
-              if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
-                map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
-              }
-              hoveredRef.current = null;
-            }
-            map.current!.getCanvas().style.cursor = '';
-          }
-        } catch (err) {
-          // If querying fails for any reason, ensure cursor resets and don't throw
-          map.current!.getCanvas().style.cursor = '';
-        }
-      });
-
       // Add navigation controls
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
     }
@@ -236,59 +141,83 @@ export default function MapboxMap({
         map.current = null;
       }
     };
-  }, [showBaseMap]);
+  }, [showBaseMap]); // Remove selectedLayers dependency
 
-  // Handle base map toggle
+  // Set up click event handlers (runs every time selectedLayers changes)
   useEffect(() => {
-    if (map.current && mapReady) {
-      const style = showBaseMap 
-        ? 'mapbox://styles/mapbox/streets-v12'
-        : 'mapbox://styles/mapbox/light-v11';
-      map.current.setStyle(style);
-    }
-  }, [showBaseMap, mapReady]);
+    if (!map.current || !mapReady) return;
 
-  // Handle feature click and highlighting using Mapbox filters
-  const handleFeatureClick = (e: any) => {
-    if (!map.current || !map.current.isStyleLoaded() || selectedLayers.length === 0) {
-      console.log('Map not ready or no layers selected');
-      return;
-    }
-
-    try {
-      // Set bbox as 5px rectangle area around clicked point
-      const bbox: [[number, number], [number, number]] = [
-        [e.point.x - 5, e.point.y - 5],
-        [e.point.x + 5, e.point.y + 5]
-      ];
-
-      // Get available layers that actually exist in the map
-      const availableLayers = selectedLayers
-        .map(layerId => `${layerId}-fill`)
-        .filter(layerName => map.current!.getLayer(layerName));
-
-      // Debug: Log available layers
-      console.log('Selected layers:', selectedLayers);
-      console.log('Available fill layers:', availableLayers);
-      console.log('All map layers:', map.current.getStyle().layers?.map(l => l.id) || []);
-
-      if (availableLayers.length === 0) {
-        console.log('No fill layers available for querying');
+    // Define handleFeatureClick with current selectedLayers value
+    const handleFeatureClick = (e: any) => {
+      if (!map.current || !map.current.isStyleLoaded() || selectedLayers.length === 0) {
+        console.log('Map not ready or no layers selected');
         return;
       }
 
-      // Find features intersecting the bounding box
-      let selectedFeatures = map.current.queryRenderedFeatures(bbox, {
-        layers: availableLayers
-      });
+      try {
+        // Set bbox as 5px rectangle area around clicked point
+        const bbox: [[number, number], [number, number]] = [
+          [e.point.x - 5, e.point.y - 5],
+          [e.point.x + 5, e.point.y + 5]
+        ];
 
-      // Fallback: if no features found in specific layers, try querying all layers
-      if (selectedFeatures.length === 0) {
-        console.log('No features found in specific layers, trying all layers...');
-        selectedFeatures = map.current.queryRenderedFeatures(bbox);
-      }
+        // Get available layers that actually exist in the map
+        const availableLayers = selectedLayers
+          .map(layerId => `${layerId}-fill`)
+          .filter(layerName => map.current!.getLayer(layerName));
 
-              if (selectedFeatures.length > 0) {
+        // Debug: Log available layers
+        console.log('Selected layers:', selectedLayers);
+        console.log('Available fill layers:', availableLayers);
+        console.log('All map layers:', map.current.getStyle().layers?.map(l => l.id) || []);
+
+        // Enhanced debugging for commercial buildings layer
+        if (selectedLayers.includes('layer-sebaran-rumah-komersil')) {
+          console.log('Commercial buildings layer is selected, checking for features...');
+          console.log('Query bbox:', bbox);
+          console.log('Available layers for query:', availableLayers);
+          
+          // Check if the commercial buildings fill layer exists
+          const commercialFillLayer = 'layer-sebaran-rumah-komersil-fill';
+          const commercialOutlineLayer = 'layer-sebaran-rumah-komersil-outline';
+          console.log('Commercial fill layer exists:', map.current.getLayer(commercialFillLayer));
+          console.log('Commercial outline layer exists:', map.current.getLayer(commercialOutlineLayer));
+          
+          // If the layer exists but wasn't found in availableLayers, add it manually
+          if (map.current.getLayer(commercialFillLayer) && !availableLayers.includes(commercialFillLayer)) {
+            availableLayers.push(commercialFillLayer);
+            console.log('Added commercial buildings layer to available layers');
+          }
+        }
+
+        if (availableLayers.length === 0) {
+          console.log('No fill layers available for querying');
+          return;
+        }
+
+        // Find features intersecting the bounding box
+        let selectedFeatures = map.current.queryRenderedFeatures(bbox, {
+          layers: availableLayers
+        });
+
+        // Fallback: if no features found in specific layers, try querying all layers
+        if (selectedFeatures.length === 0) {
+          console.log('No features found in specific layers, trying all layers...');
+          selectedFeatures = map.current.queryRenderedFeatures(bbox);
+        }
+
+        // Enhanced debugging for commercial buildings layer
+        if (selectedLayers.includes('layer-sebaran-rumah-komersil')) {
+          console.log('Commercial buildings layer is selected, checking for features...');
+          console.log('Query bbox:', bbox);
+          console.log('Available layers for query:', availableLayers);
+          console.log('Features found:', selectedFeatures.length);
+          if (selectedFeatures.length > 0) {
+            console.log('First feature properties:', selectedFeatures[0].properties);
+          }
+        }
+
+        if (selectedFeatures.length > 0) {
           const clickedFeature = selectedFeatures[0] as any;
           if (!clickedFeature || !clickedFeature.layer || !clickedFeature.properties) {
             return;
@@ -306,57 +235,208 @@ export default function MapboxMap({
           
           const config = layerConfigs[layerId];
         
-        if (config) {
-          // Clear previous highlighting
-          if (selectedFeature && selectedFeature.layerId !== layerId) {
-            const prevHighlightedLayer = `${selectedFeature.layerId}-highlighted`;
-            const prevHighlightedOutlineLayer = `${selectedFeature.layerId}-highlighted-outline`;
+          if (config) {
+            // Clear previous highlighting
+            if (selectedFeature && selectedFeature.layerId !== layerId) {
+              const prevHighlightedLayer = `${selectedFeature.layerId}-highlighted`;
+              const prevHighlightedOutlineLayer = `${selectedFeature.layerId}-highlighted-outline`;
+              
+              if (map.current.getLayer(prevHighlightedLayer)) {
+                map.current.setFilter(prevHighlightedLayer, ['==', 'OBJECTID', '']);
+              }
+              if (map.current.getLayer(prevHighlightedOutlineLayer)) {
+                map.current.setFilter(prevHighlightedOutlineLayer, ['==', 'OBJECTID', '']);
+              }
+            }
+
+            // Get the unique identifier for the feature
+            const props = clickedFeature.properties as Record<string, any>;
             
-            if (map.current.getLayer(prevHighlightedLayer)) {
-              map.current.setFilter(prevHighlightedLayer, ['==', 'OBJECTID', '']);
+            // Enhanced feature ID handling for different layer types
+            let featureId = null;
+            if (layerId === 'layer-sebaran-rumah-komersil') {
+              // For commercial buildings, use Id or create a unique identifier
+              featureId = props.Id ?? props.id ?? clickedFeature.id ?? `commercial-${Date.now()}`;
+              console.log('Commercial building clicked - Properties:', props);
+              console.log('Feature ID:', featureId);
+            } else {
+              // For other layers, use existing logic
+              const fallbackConcat = (props?.WADMKC || props?.WADMKD) ? `${props?.WADMKC || ''}-${props?.WADMKD || ''}` : null;
+              featureId = props.OBJECTID ?? props.id ?? clickedFeature.id ?? fallbackConcat;
             }
-            if (map.current.getLayer(prevHighlightedOutlineLayer)) {
-              map.current.setFilter(prevHighlightedOutlineLayer, ['==', 'OBJECTID', '']);
+            
+            // Set filter to highlight only the selected feature
+            const highlightedLayer = `${layerId}-highlighted`;
+            const highlightedOutlineLayer = `${layerId}-highlighted-outline`;
+            
+            if (featureId != null) {
+              if (map.current.getLayer(highlightedLayer)) {
+                map.current.setFilter(highlightedLayer, ['==', 'OBJECTID', featureId]);
+              }
+              if (map.current.getLayer(highlightedOutlineLayer)) {
+                map.current.setFilter(highlightedOutlineLayer, ['==', 'OBJECTID', featureId]);
+              }
             }
-          }
+            
+            // Store the selected feature
+            setSelectedFeature({
+              ...clickedFeature,
+              layerId: layerId,
+              featureId: featureId
+            });
 
-          // Get the unique identifier for the feature
-          const props = clickedFeature.properties as Record<string, any>;
-          const fallbackConcat = (props?.WADMKC || props?.WADMKD) ? `${props?.WADMKC || ''}-${props?.WADMKD || ''}` : null;
-          const featureId = props.OBJECTID ?? props.id ?? clickedFeature.id ?? fallbackConcat;
-          
-          // Set filter to highlight only the selected feature
-          const highlightedLayer = `${layerId}-highlighted`;
-          const highlightedOutlineLayer = `${layerId}-highlighted-outline`;
-          
-          if (featureId != null) {
-            if (map.current.getLayer(highlightedLayer)) {
-              map.current.setFilter(highlightedLayer, ['==', 'OBJECTID', featureId]);
-            }
-            if (map.current.getLayer(highlightedOutlineLayer)) {
-              map.current.setFilter(highlightedOutlineLayer, ['==', 'OBJECTID', featureId]);
-            }
+            // Open the feature drawer with enhanced data
+            setFeatureDrawer({
+              isOpen: true,
+              featureData: props,
+              layerName: config.name
+            });
           }
-          
-          // Store the selected feature
-          setSelectedFeature({
-            ...clickedFeature,
-            layerId: layerId,
-            featureId: featureId
-          });
-
-          // Open the feature drawer
-          setFeatureDrawer({
-            isOpen: true,
-            featureData: props,
-            layerName: config.name
-          });
         }
+      } catch (err) {
+        console.error('Error in handleFeatureClick:', err);
       }
-    } catch (error) {
-      console.error('Error handling feature click:', error);
+    };
+
+    // Add click event for feature selection
+    map.current.on('click', handleFeatureClick);
+
+    // Cleanup function to remove event listener
+    return () => {
+      if (map.current) {
+        map.current.off('click', handleFeatureClick);
+      }
+    };
+  }, [selectedLayers, mapReady]); // This useEffect runs every time selectedLayers changes
+
+  // Set up hover effects (runs every time selectedLayers changes)
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    // Define the mousemove handler
+    const handleMouseMove = (e: any) => {
+      if (!map.current || !map.current.isStyleLoaded()) return;
+
+      try {
+        const availableLayers = selectedLayers
+          .map(layerId => `${layerId}-fill`)
+          .filter(layerName => map.current!.getLayer(layerName));
+
+        if (availableLayers.length === 0) {
+          // Clear previous hover highlight if any
+          if (hoveredRef.current) {
+            const prev = hoveredRef.current;
+            if (map.current.getLayer(`${prev.layerId}-hovered`)) {
+              map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
+            }
+            if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
+              map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
+            }
+            hoveredRef.current = null;
+          }
+          map.current!.getCanvas().style.cursor = '';
+          return;
+        }
+
+        const features = map.current!.queryRenderedFeatures(e.point, {
+          layers: availableLayers
+        });
+
+        if (features.length > 0) {
+          const hovered = features[0] as any;
+          if (!hovered || !hovered.layer || !hovered.properties) {
+            return;
+          }
+
+          // Determine base layer id
+          let layerId = hovered.layer.id as string;
+          if (layerId.includes('-fill')) layerId = layerId.replace('-fill', '');
+          else if (layerId.includes('-outline')) layerId = layerId.replace('-outline', '');
+          else if (layerId.includes('-highlighted')) layerId = layerId.replace('-highlighted', '');
+          else if (layerId.includes('-hovered')) layerId = layerId.replace('-hovered', '');
+
+          const props = hovered.properties as Record<string, any>;
+          const featureId = props.OBJECTID || `${props.WADMKC}-${props.WADMKD}`;
+
+          // Skip if this feature is the same as currently hovered
+          if (!hoveredRef.current || hoveredRef.current.layerId !== layerId || hoveredRef.current.featureId !== featureId) {
+            // Clear previous hover if different
+            if (hoveredRef.current) {
+              const prev = hoveredRef.current;
+              if (map.current.getLayer(`${prev.layerId}-hovered`)) {
+                map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
+              }
+              if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
+                map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
+              }
+            }
+
+            // Apply hover filters on current layer if present
+            if (map.current.getLayer(`${layerId}-hovered`)) {
+              map.current.setFilter(`${layerId}-hovered`, ['==', 'OBJECTID', featureId]);
+            }
+            if (map.current.getLayer(`${layerId}-hovered-outline`)) {
+              map.current.setFilter(`${layerId}-hovered-outline`, ['==', 'OBJECTID', featureId]);
+            }
+
+            hoveredRef.current = { layerId, featureId };
+          }
+
+          map.current!.getCanvas().style.cursor = 'pointer';
+        } else {
+          // Clear previous hover highlight when no feature under cursor
+          if (hoveredRef.current) {
+            const prev = hoveredRef.current;
+            if (map.current.getLayer(`${prev.layerId}-hovered`)) {
+              map.current.setFilter(`${prev.layerId}-hovered`, ['==', 'OBJECTID', '']);
+            }
+            if (map.current.getLayer(`${prev.layerId}-hovered-outline`)) {
+              map.current.setFilter(`${prev.layerId}-hovered-outline`, ['==', 'OBJECTID', '']);
+            }
+            hoveredRef.current = null;
+          }
+          map.current!.getCanvas().style.cursor = '';
+        }
+      } catch (err) {
+        // If querying fails for any reason, ensure cursor resets and don't throw
+        map.current!.getCanvas().style.cursor = '';
+      }
+    };
+
+    // Add mousemove event listener
+    map.current.on('mousemove', handleMouseMove);
+
+    // Cleanup function to remove event listener
+    return () => {
+      if (map.current) {
+        map.current.off('mousemove', handleMouseMove);
+      }
+    };
+  }, [selectedLayers, mapReady]);
+
+  // Handle base map toggle
+  useEffect(() => {
+    if (map.current && mapReady) {
+      const style = showBaseMap 
+        ? 'mapbox://styles/mapbox/streets-v12'
+        : 'mapbox://styles/mapbox/light-v11';
+      map.current.setStyle(style);
     }
-  };
+  }, [showBaseMap, mapReady]);
+
+  // Reorder layers when selectedLayers change to maintain proper stacking
+  useEffect(() => {
+    if (!mapReady || !map.current || Object.keys(layers).length === 0) return;
+
+    // Reorder layers after a short delay to ensure all layers are loaded
+    const timer = setTimeout(() => {
+      reorderAllLayers();
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [selectedLayers, mapReady, layers]);
+
+
 
   // Helper function to make colors darker
   const makeColorDarker = (color: string, factor: number): string => {
@@ -414,19 +494,54 @@ export default function MapboxMap({
   useEffect(() => {
     if (!mapReady || !map.current) return;
 
-    // Load selected layers
-    selectedLayers.forEach(layerId => {
+    console.log('Layer loading effect triggered');
+    console.log('Map ready:', mapReady);
+    console.log('Selected layers:', selectedLayers);
+    console.log('Current layers state:', layers);
+    console.log('Loading state:', loading);
+
+    // Sort layers by priority to ensure proper loading order
+    const sortedLayers = [...selectedLayers].sort((a, b) => {
+      const getPriority = (layerId: string) => {
+        switch (layerId) {
+          case 'layer-administrasi': return 1;
+          case 'layer-sebaran-rumah-komersil': return 2;
+          case 'layer-kawasan-lahan-terbangun': return 3;
+          case 'layer-kawasan-rawan-bencana': return 4;
+          case 'layer-kawasan-rencana-pola-ruang': return 5;
+          case 'layer-kemiringan-lereng': return 6;
+          default: return 10;
+        }
+      };
+      return getPriority(a) - getPriority(b);
+    });
+
+    // Load selected layers in priority order
+    sortedLayers.forEach(layerId => {
+      console.log(`Processing layer: ${layerId}`);
       if (!layers[layerId] && !loading[layerId]) {
+        console.log(`Loading layer: ${layerId}`);
         loadLayer(layerId);
+      } else {
+        console.log(`Layer ${layerId} already loaded or loading`);
       }
     });
 
     // Remove unselected layers
     Object.keys(layers).forEach(layerId => {
       if (!selectedLayers.includes(layerId)) {
+        console.log(`Removing layer: ${layerId}`);
         removeLayer(layerId);
       }
     });
+
+    // Reorder layers after loading to ensure proper stacking
+    if (Object.keys(layers).length > 0) {
+      // Use setTimeout to ensure all layers are fully loaded before reordering
+      setTimeout(() => {
+        reorderAllLayers();
+      }, 100);
+    }
   }, [mapReady, selectedLayers]);
 
   // Render uploaded GeoJSON layers dynamically
@@ -553,9 +668,14 @@ export default function MapboxMap({
 
   // Load a single layer
   const loadLayer = async (layerId: string) => {
+    console.log(`loadLayer called for: ${layerId}`);
     const config = layerConfigs[layerId];
-    if (!config) return;
+    if (!config) {
+      console.log(`No config found for layer: ${layerId}`);
+      return;
+    }
 
+    console.log(`Loading layer config:`, config);
     setLoading(prev => ({ ...prev, [layerId]: true }));
 
     try {
@@ -729,6 +849,28 @@ export default function MapboxMap({
           fillPaint = { 'fill-color': matchExpr as any, 'fill-opacity': 0.3 };
         }
 
+        // Define layer order based on priority
+        const getLayerOrder = (layerId: string) => {
+          switch (layerId) {
+            case 'layer-administrasi':
+              return 1; // Bottom layer
+            case 'layer-sebaran-rumah-komersil':
+              return 2; // Above administrative
+            case 'layer-kawasan-lahan-terbangun':
+              return 3;
+            case 'layer-kawasan-rawan-bencana':
+              return 4;
+            case 'layer-kawasan-rencana-pola-ruang':
+              return 5;
+            case 'layer-kemiringan-lereng':
+              return 6;
+            default:
+              return 10; // Default for other layers
+          }
+        };
+
+        const layerOrder = getLayerOrder(layerId);
+
         // Add fill layer
         map.current.addLayer({
           id: `${layerId}-fill`,
@@ -761,7 +903,7 @@ export default function MapboxMap({
         });
 
         // Add highlighted outline layer
-        map.current.addLayer({
+        map.current!.addLayer({
           id: `${layerId}-highlighted-outline`,
           type: 'line',
           source: layerId,
@@ -773,7 +915,7 @@ export default function MapboxMap({
         });
 
         // Add hovered layer (initially hidden)
-        map.current.addLayer({
+        map.current!.addLayer({
           id: `${layerId}-hovered`,
           type: 'fill',
           source: layerId,
@@ -785,7 +927,7 @@ export default function MapboxMap({
         });
 
         // Add hovered outline layer (initially hidden)
-        map.current.addLayer({
+        map.current!.addLayer({
           id: `${layerId}-hovered-outline`,
           type: 'line',
           source: layerId,
@@ -796,17 +938,8 @@ export default function MapboxMap({
           filter: ['==', 'OBJECTID', ''] // Initially no features shown
         });
 
-        // Ensure rumah komersil sits above administrasi
-        if (layerId === 'layer-sebaran-rumah-komersil') {
-          try {
-            if (map.current.getLayer(`${layerId}-outline`)) map.current.moveLayer(`${layerId}-outline`);
-            if (map.current.getLayer(`${layerId}-fill`)) map.current.moveLayer(`${layerId}-fill`);
-            if (map.current.getLayer(`${layerId}-highlighted-outline`)) map.current.moveLayer(`${layerId}-highlighted-outline`);
-            if (map.current.getLayer(`${layerId}-highlighted`)) map.current.moveLayer(`${layerId}-highlighted`);
-            if (map.current.getLayer(`${layerId}-hovered-outline`)) map.current.moveLayer(`${layerId}-hovered-outline`);
-            if (map.current.getLayer(`${layerId}-hovered`)) map.current.moveLayer(`${layerId}-hovered`);
-          } catch {}
-        }
+        // Ensure proper layer stacking order
+        ensureLayerOrder(layerId, layerOrder);
 
         // Add labels for administrative layer
         if (layerId === 'layer-administrasi') {
@@ -824,12 +957,116 @@ export default function MapboxMap({
           map.current!.getCanvas().style.cursor = '';
         });
 
+        // Enhanced debugging for commercial buildings layer events
+        if (layerId === 'layer-sebaran-rumah-komersil') {
+          console.log('Commercial buildings layer events bound');
+          console.log('Fill layer ID:', `${layerId}-fill`);
+          console.log('Layer exists:', map.current.getLayer(`${layerId}-fill`));
+        }
+
         setLayers(prev => ({ ...prev, [layerId]: { source: layerId, config } }));
       }
     } catch (error) {
       console.error(`Error loading ${config.name}:`, error);
     } finally {
       setLoading(prev => ({ ...prev, [layerId]: false }));
+    }
+  };
+
+  // Ensure proper layer stacking order
+  const ensureLayerOrder = (layerId: string, targetOrder: number) => {
+    if (!map.current) return;
+
+    try {
+      // Get all layers for this specific layer group
+      const layerSuffixes = ['-fill', '-outline', '-highlighted', '-highlighted-outline', '-hovered', '-hovered-outline'];
+      const layersToOrder = layerSuffixes
+        .map(suffix => `${layerId}${suffix}`)
+        .filter(id => map.current!.getLayer(id));
+
+      if (layersToOrder.length === 0) return;
+
+      // Get the current map style layers
+      const styleLayers = map.current.getStyle().layers || [];
+      
+      // Find the target position based on layer order
+      let targetPosition = 0;
+      
+      if (targetOrder === 1) {
+        // For administrative layer, place at the beginning (after base map layers)
+        targetPosition = 0;
+      } else {
+        // For other layers, find the position after the previous layer group
+        // Look for the last layer of the previous priority group
+        for (let i = styleLayers.length - 1; i >= 0; i--) {
+          const layer = styleLayers[i];
+          if (layer.id.includes('-highlighted-outline') && !layer.id.includes(layerId)) {
+            targetPosition = i + 1;
+            break;
+          }
+        }
+      }
+
+      // Move all layers for this layer group to the correct position
+      layersToOrder.forEach((layerId, index) => {
+        try {
+          if (targetPosition === 0) {
+            // For first position, move to the beginning
+            map.current!.moveLayer(layerId);
+          } else {
+            // For other positions, find a reference layer and move relative to it
+            const referenceLayer = styleLayers[targetPosition - 1];
+            if (referenceLayer) {
+              map.current!.moveLayer(layerId, referenceLayer.id);
+            }
+          }
+        } catch (e) {
+          // Layer might already be in the right position
+          console.log(`Layer ${layerId} already in position or couldn't be moved`);
+        }
+      });
+
+      console.log(`Layer ${layerId} positioned at order ${targetOrder}, position ${targetPosition}`);
+      console.log(`Layers ordered:`, layersToOrder);
+      
+      // Debug: Log current layer order
+      const currentLayers = map.current.getStyle().layers || [];
+      console.log(`Current map layers order:`, currentLayers.map(l => l.id));
+    } catch (error) {
+      console.error(`Error ensuring layer order for ${layerId}:`, error);
+    }
+  };
+
+  // Reorder all layers to maintain proper stacking
+  const reorderAllLayers = () => {
+    if (!map.current) return;
+
+    try {
+      // Get all loaded layers and sort them by priority
+      const loadedLayers = Object.keys(layers).sort((a, b) => {
+        const getPriority = (layerId: string) => {
+          switch (layerId) {
+            case 'layer-administrasi': return 1;
+            case 'layer-sebaran-rumah-komersil': return 2;
+            case 'layer-kawasan-lahan-terbangun': return 3;
+            case 'layer-kawasan-rawan-bencana': return 4;
+            case 'layer-kawasan-rencana-pola-ruang': return 5;
+            case 'layer-kemiringan-lereng': return 6;
+            default: return 10;
+          }
+        };
+        return getPriority(a) - getPriority(b);
+      });
+
+      // Reorder each layer group
+      loadedLayers.forEach((layerId, index) => {
+        const priority = index + 1;
+        ensureLayerOrder(layerId, priority);
+      });
+
+      console.log('All layers reordered successfully');
+    } catch (error) {
+      console.error('Error reordering all layers:', error);
     }
   };
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ChevronUp, ChevronDown, Check } from 'lucide-react';
+import StatisticsChart from './StatisticsChart';
 
 interface SidebarProps {
   activeMenu: string | null;
@@ -28,9 +29,15 @@ export default function Sidebar({
   selectedKelurahan,
   setSelectedKelurahan
 }: SidebarProps) {
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['layer-administrasi']); // Default expanded
+  
+  // Debug state changes
+  useEffect(() => {
+    console.log('Sidebar - selectedLayers changed:', selectedLayers);
+  }, [selectedLayers]);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['layer-administrasi', 'layer-selection']); // Default expanded
   const [showKecamatanDropdown, setShowKecamatanDropdown] = useState(false);
   const [showKelurahanDropdown, setShowKelurahanDropdown] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(false);
 
   const kecamatanRef = useRef<HTMLDivElement>(null);
   const kelurahanRef = useRef<HTMLDivElement>(null);
@@ -196,11 +203,21 @@ export default function Sidebar({
   };
 
   const toggleLayer = (layerId: string) => {
+    console.log(`toggleLayer called for: ${layerId}`);
+    console.log('Current selectedLayers:', selectedLayers);
+    
     if (selectedLayers.includes(layerId)) {
+      console.log(`Removing layer: ${layerId}`);
       setSelectedLayers(selectedLayers.filter(l => l !== layerId));
     } else {
+      console.log(`Adding layer: ${layerId}`);
       setSelectedLayers([...selectedLayers, layerId]);
     }
+    
+    console.log('New selectedLayers will be:', selectedLayers.includes(layerId) 
+      ? selectedLayers.filter(l => l !== layerId) 
+      : [...selectedLayers, layerId]
+    );
   };
 
   return (
@@ -209,6 +226,45 @@ export default function Sidebar({
       <div className="p-4 border-b border-gray-200 bg-gray-50">
         <h1 className="text-lg font-bold text-gray-800">Purwakarta Map</h1>
         <p className="text-sm text-gray-600 mt-1">Interactive Dashboard</p>
+        <button
+          onClick={() => setShowStatistics(true)}
+          className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Statistics
+        </button>
+        
+        {/* Test button for commercial buildings layer */}
+        {/* <button
+          onClick={() => {
+            console.log('Test button clicked - adding commercial buildings layer');
+            console.log('Current selectedLayers in Sidebar:', selectedLayers);
+            
+            if (!selectedLayers.includes('layer-sebaran-rumah-komersil')) {
+              const newSelectedLayers = [...selectedLayers, 'layer-sebaran-rumah-komersil'];
+              console.log('Setting new selectedLayers:', newSelectedLayers);
+              setSelectedLayers(newSelectedLayers);
+            } else {
+              console.log('Commercial buildings layer already selected');
+              // Force a re-render by toggling off and on
+              const filteredLayers = selectedLayers.filter(l => l !== 'layer-sebaran-rumah-komersil');
+              console.log('Temporarily removing layer:', filteredLayers);
+              setSelectedLayers(filteredLayers);
+              
+              // Add it back after a short delay
+              setTimeout(() => {
+                const newLayers = [...filteredLayers, 'layer-sebaran-rumah-komersil'];
+                console.log('Adding layer back:', newLayers);
+                setSelectedLayers(newLayers);
+              }, 100);
+            }
+          }}
+          className="mt-2 w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+          🏢 Test: Enable Commercial Buildings
+        </button> */}
       </div>
 
       {/* Content */}
@@ -316,6 +372,10 @@ export default function Sidebar({
                   <span className="text-sm text-gray-700 leading-relaxed">
                     {config.name}
                   </span>
+                  {/* Debug info */}
+                  <span className="text-xs text-gray-500">
+                    (Selected: {selectedLayers.includes(layerId) ? 'Yes' : 'No'})
+                  </span>
                 </div>
               ))}
             </div>
@@ -349,6 +409,12 @@ export default function Sidebar({
           Purwakarta Map Dashboard v1.0
         </div>
       </div>
+
+      {/* Statistics Chart Modal */}
+      <StatisticsChart 
+        isOpen={showStatistics} 
+        onClose={() => setShowStatistics(false)} 
+      />
     </div>
   );
 } 
