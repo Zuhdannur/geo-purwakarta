@@ -1,99 +1,122 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
-export default function LoginPage() {
-  const router = useRouter();
+function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { login, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get('next') || '/';
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('auth');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.token && parsed?.expires && Date.now() < parsed.expires) {
-          router.replace('/');
-        }
-      }
-    } catch {}
-  }, [router]);
+    // If already authenticated, redirect to the intended page
+    if (isAuthenticated) {
+      router.replace(next);
+    }
+  }, [isAuthenticated, next, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || 'Login failed');
-      }
-      const j = await res.json();
-      const oneDay = 24 * 60 * 60 * 1000;
-      const payload = { token: j?.token || 'ok', expires: Date.now() + oneDay };
-      localStorage.setItem('auth', JSON.stringify(payload));
-      router.replace('/');
-    } catch (e: any) {
-      setError(e?.message || 'Login failed');
-    } finally {
-      setLoading(false);
+    setIsLoading(true);
+    setError('');
+
+    const result = await login(username, password);
+    
+    if (result.success) {
+      router.replace(next);
+    } else {
+      setError(result.error || 'Login failed');
     }
+    
+    setIsLoading(false);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-xl border border-gray-200 p-6">
-        <div className="w-full flex justify-center">
-          <Image src="/globe.svg" alt="Geo Logo" width={56} height={56} />
+  if (isAuthenticated) {
+    return (
+      <div className="flex h-screen bg-gray-100 items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-700 mb-2">Redirecting...</div>
+          <div className="text-gray-500">You are already logged in</div>
         </div>
-        <h1 className="mt-4 text-center text-xl font-semibold text-gray-800">Sign in</h1>
-        <p className="text-center text-gray-500 text-sm">Purwakarta Geospatial Dashboard</p>
+      </div>
+    );
+  }
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+  return (
+    <div className="flex h-screen bg-gray-100 items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">Purwakarta Map Dashboard</h1>
+          <p className="text-gray-600 mt-2">Please sign in to continue</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Username</label>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              Username
+            </label>
             <input
+              id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="admin"
-              autoComplete="username"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter username"
               required
             />
           </div>
+          
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="password"
-              autoComplete="current-password"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter password"
               required
             />
           </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          
           <button
             type="submit"
-            disabled={loading}
-            className={`w-full py-2 rounded-md text-white ${loading ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'}`}
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Signing in...' : 'Login'}
+            {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+        
+        <div className="mt-6 text-center text-sm text-gray-600">
+          <p>Demo credentials:</p>
+          <p className="font-mono bg-gray-100 px-2 py-1 rounded mt-1">
+            Username: admin | Password: admin
+          </p>
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <LoginForm />
   );
 }
 

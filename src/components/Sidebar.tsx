@@ -15,6 +15,7 @@ interface SidebarProps {
   setSelectedKecamatan: (kecamatan: string) => void;
   selectedKelurahan: string;
   setSelectedKelurahan: (kelurahan: string) => void;
+  onLogout: () => void;
 }
 
 export default function Sidebar({ 
@@ -27,7 +28,8 @@ export default function Sidebar({
   selectedKecamatan,
   setSelectedKecamatan,
   selectedKelurahan,
-  setSelectedKelurahan
+  setSelectedKelurahan,
+  onLogout
 }: SidebarProps) {
   
   // Debug state changes
@@ -401,6 +403,16 @@ export default function Sidebar({
           </button>
           <span className="text-sm text-gray-700">Peta Google</span>
         </div>
+      </div>
+
+      {/* Logout Button - Bottom */}
+      <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <button
+          onClick={onLogout}
+          className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors text-sm font-medium"
+        >
+          Logout
+        </button>
       </div>
 
       {/* Footer */}
