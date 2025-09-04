@@ -510,21 +510,21 @@ export default function MapboxMap({
     console.log('Current layers state:', layers);
     console.log('Loading state:', loading);
 
-    // Sort layers by priority to ensure proper loading order
-    const sortedLayers = [...selectedLayers].sort((a, b) => {
-      const getPriority = (layerId: string) => {
-        switch (layerId) {
-          case 'layer-administrasi': return 1;
-          case 'layer-sebaran-rumah-komersil': return 2;
-          case 'layer-kawasan-lahan-terbangun': return 3;
-          case 'layer-kawasan-rawan-bencana': return 4;
-          case 'layer-kawasan-rencana-pola-ruang': return 5;
-          case 'layer-kemiringan-lereng': return 6;
-          default: return 10;
-        }
-      };
-      return getPriority(a) - getPriority(b);
-    });
+            // Sort layers by priority to ensure proper loading order
+        const sortedLayers = [...selectedLayers].sort((a, b) => {
+          const getPriority = (layerId: string) => {
+            switch (layerId) {
+              case 'layer-administrasi': return 1;
+              case 'layer-kawasan-lahan-terbangun': return 2;
+              case 'layer-sebaran-rumah-komersil': return 3;
+              case 'layer-kawasan-rawan-bencana': return 4;
+              case 'layer-kawasan-rencana-pola-ruang': return 5;
+              case 'layer-kemiringan-lereng': return 6;
+              default: return 10;
+            }
+          };
+          return getPriority(a) - getPriority(b);
+        });
 
     // Load selected layers in priority order
     sortedLayers.forEach(layerId => {
@@ -761,7 +761,7 @@ export default function MapboxMap({
             });
           }
 
-          // Create centered label for the dataset
+          // Create centered label for the dataset with dynamic hazard class labels
           const labelFeatures: GeoJSON.Feature[] = (item.data.features || [])
             .map((feature: any) => {
               const geom = feature?.geometry;
@@ -770,10 +770,37 @@ export default function MapboxMap({
               if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
                 const center = getPolygonCenter(geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates);
                 if (center && Array.isArray(center) && center.length === 2) {
+                  // Create dynamic label based on hazard type and class
+                  let dynamicLabel = '';
+                  let hazardClass = '';
+                  
+                  if (item.url.toLowerCase().includes('gempa')) {
+                    // Earthquake uses "UNSUR" property
+                    hazardClass = feature.properties?.UNSUR || '';
+                    dynamicLabel = `Gempa Bumi\nTingkat: ${hazardClass}`;
+                  } else if (item.url.toLowerCase().includes('gerakan_tanah') || item.url.toLowerCase().includes('gerakan-tanah')) {
+                    // Landslide uses "Unsur" property
+                    hazardClass = feature.properties?.Unsur || '';
+                    dynamicLabel = `Gerakan Tanah\nTingkat: ${hazardClass}`;
+                  } else if (item.url.toLowerCase().includes('banjir')) {
+                    // Flood uses "class" property
+                    hazardClass = feature.properties?.class || '';
+                    dynamicLabel = `Banjir\nTingkat: ${hazardClass}`;
+                  } else {
+                    hazardClass = feature.properties?.class || feature.properties?.CLASS || feature.properties?.Unsur || feature.properties?.UNSUR || '';
+                    dynamicLabel = style.label;
+                  }
+                  
                   return {
                     type: 'Feature',
                     geometry: { type: 'Point', coordinates: center },
-                    properties: { label: style.label }
+                    properties: { 
+                      label: dynamicLabel,
+                      hazardClass: hazardClass,
+                      hazardType: item.url.toLowerCase().includes('gempa') ? 'gempa' : 
+                                   item.url.toLowerCase().includes('gerakan_tanah') || item.url.toLowerCase().includes('gerakan-tanah') ? 'gerakan_tanah' :
+                                   item.url.toLowerCase().includes('banjir') ? 'banjir' : 'unknown'
+                    }
                   } as GeoJSON.Feature;
                 }
               }
@@ -996,7 +1023,7 @@ export default function MapboxMap({
 
     try {
       // Get all layers for this specific layer group
-      const layerSuffixes = ['-fill', '-outline', '-highlighted', '-highlighted-outline', '-hovered', '-hovered-outline', '-labels', '-labels-commercial', '-labels-kecamatan', '-labels-kelurahan'];
+      const layerSuffixes = ['-fill', '-outline', '-highlighted', '-highlighted-outline', '-hovered', '-hovered-outline', '-labels', '-labels-commercial', '-labels-kecamatan', '-labels-kelurahan', '-labels-symbol'];
       const layersToOrder = layerSuffixes
         .map(suffix => `${layerId}${suffix}`)
         .filter(id => map.current!.getLayer(id));
@@ -1077,8 +1104,8 @@ export default function MapboxMap({
         const getPriority = (layerId: string) => {
           switch (layerId) {
             case 'layer-administrasi': return 1;
-            case 'layer-sebaran-rumah-komersil': return 2;
-            case 'layer-kawasan-lahan-terbangun': return 3;
+            case 'layer-kawasan-lahan-terbangun': return 2;
+            case 'layer-sebaran-rumah-komersil': return 3;
             case 'layer-kawasan-rawan-bencana': return 4;
             case 'layer-kawasan-rencana-pola-ruang': return 5;
             case 'layer-kemiringan-lereng': return 6;
@@ -1449,9 +1476,30 @@ export default function MapboxMap({
       firstRingLength: coordinates[0]?.[0]?.length
     });
 
-    // The coordinates structure is [[[x1,y1], [x2,y2], ...]] for Polygon
-    // So coordinates[0] is the ring array, not coordinates[0][0]
-    const ring = coordinates[0];
+    // Handle different coordinate structures:
+    // 1. Polygon: [[[x,y], [x,y], ...]] -> coordinates[0] is the ring
+    // 2. MultiPolygon: [[[[x,y], [x,y], ...]], [[[x,y], [x,y], ...]]] -> coordinates[0][0] is the first ring
+    // 3. Some hazard layers might have: [[[[x,y,z], [x,y,z], ...]]] -> coordinates[0][0] is the ring
+    
+    let ring = null;
+    
+    // Try to find the ring array
+    if (coordinates[0] && Array.isArray(coordinates[0])) {
+      if (coordinates[0][0] && Array.isArray(coordinates[0][0]) && coordinates[0][0].length > 0) {
+        // This looks like coordinates[0][0] contains coordinate pairs
+        if (Array.isArray(coordinates[0][0][0]) && coordinates[0][0][0].length >= 2) {
+          // coordinates[0][0] is the ring
+          ring = coordinates[0][0];
+        } else {
+          // coordinates[0] is the ring
+          ring = coordinates[0];
+        }
+      } else {
+        // coordinates[0] is the ring
+        ring = coordinates[0];
+      }
+    }
+    
     if (!ring || ring.length < 3) {
       console.log('getPolygonCenter: Invalid ring:', { ring, length: ring?.length });
       return null;
