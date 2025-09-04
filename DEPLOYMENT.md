@@ -1,46 +1,43 @@
-# Deployment Guide for Vercel
+# Deployment Guide for Vercel (File-Based Approach)
+
+## Overview
+
+This application uses **file-based storage** with GeoJSON files stored in the `public` directory. To make this work on Vercel, we use the **Node.js runtime** which allows file system operations.
 
 ## Prerequisites
 
 1. **Vercel Account**: Make sure you have a Vercel account
 2. **Vercel CLI**: Install Vercel CLI globally: `npm i -g vercel`
 
-## Setting up Vercel KV Storage
+## Key Configuration
 
-### Step 1: Create KV Database
+### Runtime Configuration
 
-1. Go to your Vercel dashboard
-2. Select your project
-3. Go to the "Storage" tab
-4. Click "Create Database"
-5. Choose "KV" (Redis)
-6. Select a plan (Hobby plan is free)
-7. Choose a region close to your users
-8. Click "Create"
+The application is configured to use **Node.js runtime** instead of the default Edge runtime. This is specified in:
 
-### Step 2: Get Environment Variables
+1. **API Routes**: Each API route has `export const runtime = 'nodejs'`
+2. **Vercel Config**: `vercel.json` specifies `"runtime": "nodejs"` for all API functions
 
-After creating the KV database, Vercel will provide you with these environment variables:
+### Why Node.js Runtime?
 
-- `KV_URL`
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
-- `KV_REST_API_READ_ONLY_TOKEN`
+- **File System Access**: Allows reading/writing to files using `fs` module
+- **Full Node.js APIs**: Access to all Node.js built-in modules
+- **Compatibility**: Works with existing file-based code
 
-### Step 3: Add Environment Variables to Vercel
+## Deployment Steps
 
-1. In your Vercel project dashboard, go to "Settings" → "Environment Variables"
-2. Add each environment variable:
-   - `KV_URL` = (value from Vercel)
-   - `KV_REST_API_URL` = (value from Vercel)
-   - `KV_REST_API_TOKEN` = (value from Vercel)
-   - `KV_REST_API_READ_ONLY_TOKEN` = (value from Vercel)
-
-### Step 4: Deploy
+### Step 1: Deploy to Vercel
 
 1. Push your code to GitHub/GitLab
 2. Connect your repository to Vercel
 3. Deploy the project
+
+### Step 2: Verify Configuration
+
+After deployment, verify that:
+- API routes are using Node.js runtime
+- File system operations work correctly
+- No "read-only file system" errors occur
 
 ## Alternative: Use Vercel CLI
 
@@ -57,67 +54,76 @@ vercel
 # Follow the prompts to set up your project
 ```
 
-## Post-Deployment Setup
+## Architecture
 
-### Initialize Data Storage
+### File-Based Storage
+- **Data Location**: `/public/new data/rumah_komersil.geojson`
+- **File Operations**: Read/write using Node.js `fs` module
+- **Runtime**: Node.js (not Edge runtime)
+- **Persistence**: Files are stored in Vercel's file system
 
-After deployment, you need to initialize the KV storage with your GeoJSON data:
+### API Endpoints
+- `/api/data/update-feature` - Updates feature properties in GeoJSON file
+- `/api/data/reset-properties` - Resets all feature properties
+- All endpoints use Node.js runtime for file system access
 
-1. Make a POST request to: `https://your-domain.vercel.app/api/data/init-storage`
-2. This will copy the static GeoJSON data from your public folder to KV storage
-3. You can use tools like Postman, curl, or your browser's developer tools
+## Benefits of This Approach
 
-Example with curl:
-```bash
-curl -X POST https://your-domain.vercel.app/api/data/init-storage
-```
+1. **Simple**: No database setup required
+2. **Familiar**: Uses standard file system operations
+3. **Fast**: Direct file access without network calls
+4. **Cost Effective**: No additional storage costs
+5. **Vercel Compatible**: Works with Node.js runtime
+
+## Limitations
+
+1. **File Size**: Large GeoJSON files may impact performance
+2. **Concurrent Writes**: Multiple simultaneous writes could cause conflicts
+3. **Scaling**: Not suitable for high-frequency updates
+4. **Backup**: No automatic backup of modified files
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **"KV not found" error**: Make sure you've created a KV database and added the environment variables
-2. **"Read-only file system" error**: This should be resolved now that we're using KV storage instead of file system
-3. **Data not loading**: Make sure you've initialized the storage by calling the init-storage endpoint
+1. **"Read-only file system" error**: 
+   - Make sure you're using Node.js runtime
+   - Check that `vercel.json` has correct runtime configuration
+   - Verify API routes have `export const runtime = 'nodejs'`
 
-### Environment Variables Check
+2. **File not found errors**:
+   - Check file paths in API routes
+   - Ensure files exist in the `public` directory
+   - Verify file permissions
 
-Verify your environment variables are set correctly in Vercel:
-- Go to Project Settings → Environment Variables
-- Make sure all KV-related variables are present
-- Redeploy if you've added new environment variables
+3. **Deployment failures**:
+   - Check Vercel function logs
+   - Verify all dependencies are installed
+   - Check for syntax errors in API routes
 
-## Architecture Changes
+### Environment Variables
 
-### Before (File System - Not Working on Vercel)
-- Data was stored in `/public/new data/rumah_komersil.geojson`
-- API routes tried to read/write files using `fs` module
-- This caused "read-only file system" errors on Vercel
-
-### After (KV Storage - Vercel Compatible)
-- Data is stored in Vercel KV (Redis-based)
-- API routes use `@vercel/kv` package
-- Static files remain in `/public` for initial data
-- Dynamic updates are stored in KV storage
-
-## Benefits of This Approach
-
-1. **Vercel Compatible**: Works with serverless functions
-2. **Scalable**: KV storage can handle large datasets
-3. **Fast**: Redis-based storage is very fast
-4. **Persistent**: Data persists between function executions
-5. **Cost Effective**: Vercel KV has a generous free tier
-
-## Data Flow
-
-1. **Initial Load**: Static GeoJSON files in `/public` folder
-2. **First API Call**: Data is copied to KV storage
-3. **Subsequent Calls**: Data is read from KV storage
-4. **Updates**: Data is written to KV storage
-5. **Map Display**: Map reads from KV storage via API
+No special environment variables are required for file-based operations.
 
 ## Monitoring
 
 - Check Vercel Function logs for any errors
-- Monitor KV storage usage in Vercel dashboard
+- Monitor function execution times
 - Use Vercel Analytics to track performance
+- Watch for file system operation errors
+
+## Best Practices
+
+1. **Error Handling**: Always wrap file operations in try-catch blocks
+2. **File Validation**: Check file existence before operations
+3. **Data Validation**: Validate JSON data before writing
+4. **Logging**: Log file operations for debugging
+5. **Backup Strategy**: Consider implementing file backup mechanisms
+
+## Future Considerations
+
+If you need to scale beyond file-based storage, consider:
+- **Vercel KV**: Redis-based storage for high-frequency updates
+- **Vercel Postgres**: SQL database for complex queries
+- **External APIs**: Store data in external services
+- **Hybrid Approach**: Use files for static data, database for dynamic data

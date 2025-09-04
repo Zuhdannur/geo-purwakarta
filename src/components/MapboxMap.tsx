@@ -1134,8 +1134,8 @@ export default function MapboxMap({
     try {
       console.log('Refreshing commercial buildings layer data...');
       
-      // Fetch updated data from KV storage
-      const response = await fetch('/api/data/get-rumah-komersil');
+      // Fetch updated data
+      const response = await fetch('/new data/rumah_komersil.geojson');
       if (!response.ok) {
         console.error('Failed to fetch updated data');
         return;

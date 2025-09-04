@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import fs from 'fs';
+import path from 'path';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST() {
   try {
-    // Get the current data from KV storage
-    const geoJsonData = await kv.get('rumah_komersil_data');
+    const filePath = path.join(process.cwd(), 'public', 'new data', 'rumah_komersil.geojson');
     
-    if (!geoJsonData) {
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
       return NextResponse.json(
-        { error: 'Data not found in storage' },
+        { error: 'File not found' },
         { status: 404 }
       );
     }
+
+    // Read the current GeoJSON file
+    const geoJsonData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     
     // Reset all features to have only basic properties
     geoJsonData.features = geoJsonData.features.map((feature: any, index: number) => {
@@ -27,8 +34,8 @@ export async function POST() {
       };
     });
 
-    // Save the reset data back to KV storage
-    await kv.set('rumah_komersil_data', geoJsonData);
+    // Write the reset data back to the file
+    fs.writeFileSync(filePath, JSON.stringify(geoJsonData, null, 2), 'utf-8');
 
     return NextResponse.json({
       success: true,
@@ -41,6 +48,6 @@ export async function POST() {
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
-    );
+      );
   }
 }

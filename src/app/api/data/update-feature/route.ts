@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import fs from 'fs';
+import path from 'path';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,15 +34,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the current data from KV storage
-    const geoJsonData = await kv.get('rumah_komersil_data');
-    
-    if (!geoJsonData) {
+    // Path to the commercial buildings GeoJSON file
+    const filePath = path.join(process.cwd(), 'public', 'new data', 'rumah_komersil.geojson');
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
       return NextResponse.json(
-        { error: 'Data not found in storage' },
+        { error: 'GeoJSON file not found' },
         { status: 404 }
       );
     }
+
+    // Read the current GeoJSON file
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const geoJsonData = JSON.parse(fileContent);
 
     // Debug: Log available features
     console.log('GeoJSON Debug:', {
@@ -161,8 +170,8 @@ export async function POST(request: NextRequest) {
     // Replace the feature in the array
     geoJsonData.features[featureIndex] = updatedFeature;
 
-    // Save the updated data back to KV storage
-    await kv.set('rumah_komersil_data', geoJsonData);
+    // Write the updated data back to the file (no backup)
+    fs.writeFileSync(filePath, JSON.stringify(geoJsonData, null, 2), 'utf-8');
 
     // Return success response
     return NextResponse.json({
