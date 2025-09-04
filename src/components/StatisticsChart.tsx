@@ -72,7 +72,7 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
     setIsLoading(true);
     try {
       // Fetch the rumah komersil GeoJSON data
-      const response = await fetch('/new data/rumah_komersil.geojson');
+      const response = await fetch('/api/data/get-rumah-komersil');
       const rumahKomersilData = await response.json();
 
       // Fetch the layer administrasi GeoJSON data to get kecamatan boundaries

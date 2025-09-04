@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from 'redis';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// In-memory storage for demo purposes
-// In production, you should use Vercel KV or a database
-let inMemoryData: any = null;
+// Create Redis client
+const redis = createClient({
+  url: process.env.REDIS_URL
+});
+
+// Connect to Redis
+redis.on('error', (err) => console.log('Redis Client Error', err));
 
 export async function POST(request: NextRequest) {
   try {
+    // Connect to Redis if not already connected
+    if (!redis.isOpen) {
+      await redis.connect();
+    }
+
     const body = await request.json();
     const { featureId, layerId, properties } = body;
 
@@ -36,32 +46,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If we don't have data in memory, try to fetch it from the static file
-    if (!inMemoryData) {
+    // Get data from Redis
+    let geoJsonData = await redis.get('rumah_komersil_data');
+    
+    // If no data in Redis, load from static file and store it
+    if (!geoJsonData) {
       try {
         const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/new data/rumah_komersil.geojson`);
         if (response.ok) {
-          inMemoryData = await response.json();
+          geoJsonData = await response.json();
+          // Store the initial data in Redis
+          await redis.set('rumah_komersil_data', JSON.stringify(geoJsonData));
         } else {
           return NextResponse.json(
             { error: 'Unable to load GeoJSON data' },
             { status: 500 }
           );
         }
-      } catch (error) {
+      } catch (fetchError) {
         return NextResponse.json(
           { error: 'Failed to load GeoJSON data' },
           { status: 500 }
         );
       }
+    } else {
+      // Parse the JSON string from Redis
+      geoJsonData = JSON.parse(geoJsonData);
+    }
+
+    // Type guard to ensure geoJsonData has the expected structure
+    if (!geoJsonData || typeof geoJsonData !== 'object' || !('features' in geoJsonData) || !Array.isArray((geoJsonData as any).features)) {
+      return NextResponse.json(
+        { error: 'Invalid GeoJSON data structure' },
+        { status: 500 }
+      );
     }
 
     // Find the feature to update
     let featureIndex = -1;
-    let foundFeature = null;
     
-    for (let i = 0; i < inMemoryData.features.length; i++) {
-      const feature = inMemoryData.features[i];
+    for (let i = 0; i < (geoJsonData as any).features.length; i++) {
+      const feature = (geoJsonData as any).features[i];
       const props = feature.properties || {};
       
       // Check all possible ID matches (including string conversions)
@@ -82,7 +107,6 @@ export async function POST(request: NextRequest) {
       
       if (matches.some(match => match)) {
         featureIndex = i;
-        foundFeature = feature;
         console.log(`Feature found at index ${i}:`, {
           featureProps: props,
           matchingId: featureId,
@@ -94,12 +118,11 @@ export async function POST(request: NextRequest) {
     }
     
     // If still not found, try to find by index (featureId might be the array index)
-    if (featureIndex === -1 && featureId >= 0 && featureId < inMemoryData.features.length) {
+    if (featureIndex === -1 && featureId >= 0 && featureId < (geoJsonData as any).features.length) {
       console.log(`Trying to find feature by index: ${featureId}`);
-      const featureByIndex = inMemoryData.features[featureId];
+      const featureByIndex = (geoJsonData as any).features[featureId];
       if (featureByIndex) {
         featureIndex = featureId;
-        foundFeature = featureByIndex;
         console.log(`Feature found by index ${featureId}:`, {
           featureProps: featureByIndex.properties
         });
@@ -113,29 +136,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update the feature properties in memory
+    // Update the feature properties
     const updatedFeature = {
-      ...inMemoryData.features[featureIndex],
+      ...(geoJsonData as any).features[featureIndex],
       properties: {
-        ...inMemoryData.features[featureIndex].properties,
+        ...(geoJsonData as any).features[featureIndex].properties,
         ...properties
       }
     };
 
     // Replace the feature in the array
-    inMemoryData.features[featureIndex] = updatedFeature;
+    (geoJsonData as any).features[featureIndex] = updatedFeature;
 
-    // Note: In Vercel's serverless environment, we can't write to files
-    // The data is stored in memory for the duration of this function execution
-    // For persistent storage, you would need to use Vercel KV or a database
+    // Save the updated data back to Redis
+    await redis.set('rumah_komersil_data', JSON.stringify(geoJsonData));
 
     // Return success response
     return NextResponse.json({
       success: true,
-      message: 'Feature updated successfully (stored in memory)',
+      message: 'Feature updated successfully and saved to Redis Cloud',
       featureId,
-      updatedProperties: properties,
-      note: 'Data is stored in memory. For persistent storage, consider using Vercel KV or a database.'
+      updatedProperties: properties
     });
 
   } catch (error) {

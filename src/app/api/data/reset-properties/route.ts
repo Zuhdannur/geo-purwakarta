@@ -1,36 +1,62 @@
 import { NextResponse } from 'next/server';
+import { createClient } from 'redis';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// In-memory storage for demo purposes
-// In production, you should use Vercel KV or a database
-let inMemoryData: any = null;
+// Create Redis client
+const redis = createClient({
+  url: process.env.REDIS_URL
+});
+
+// Connect to Redis
+redis.on('error', (err) => console.log('Redis Client Error', err));
 
 export async function POST() {
   try {
-    // If we don't have data in memory, try to fetch it from the static file
-    if (!inMemoryData) {
+    // Connect to Redis if not already connected
+    if (!redis.isOpen) {
+      await redis.connect();
+    }
+
+    // Get data from Redis
+    let geoJsonData = await redis.get('rumah_komersil_data');
+    
+    // If no data in Redis, load from static file and store it
+    if (!geoJsonData) {
       try {
         const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/new data/rumah_komersil.geojson`);
         if (response.ok) {
-          inMemoryData = await response.json();
+          geoJsonData = await response.json();
+          // Store the initial data in Redis
+          await redis.set('rumah_komersil_data', JSON.stringify(geoJsonData));
         } else {
           return NextResponse.json(
             { error: 'Unable to load GeoJSON data' },
             { status: 500 }
           );
         }
-      } catch (error) {
+      } catch (fetchError) {
         return NextResponse.json(
           { error: 'Failed to load GeoJSON data' },
           { status: 500 }
         );
       }
+    } else {
+      // Parse the JSON string from Redis
+      geoJsonData = JSON.parse(geoJsonData);
+    }
+    
+    // Type guard to ensure geoJsonData has the expected structure
+    if (!geoJsonData || typeof geoJsonData !== 'object' || !('features' in geoJsonData) || !Array.isArray((geoJsonData as any).features)) {
+      return NextResponse.json(
+        { error: 'Invalid GeoJSON data structure' },
+        { status: 500 }
+      );
     }
     
     // Reset all features to have only basic properties
-    inMemoryData.features = inMemoryData.features.map((feature: any, index: number) => {
+    (geoJsonData as any).features = (geoJsonData as any).features.map((feature: any, index: number) => {
       // Keep only essential properties
       const resetProperties = {
         feature_id: index + 1, // Keep incremental feature_id
@@ -43,15 +69,13 @@ export async function POST() {
       };
     });
 
-    // Note: In Vercel's serverless environment, we can't write to files
-    // The data is stored in memory for the duration of this function execution
-    // For persistent storage, you would need to use Vercel KV or a database
+    // Save the reset data back to Redis
+    await redis.set('rumah_komersil_data', JSON.stringify(geoJsonData));
 
     return NextResponse.json({
       success: true,
-      message: 'All properties reset successfully (stored in memory)',
-      totalFeatures: inMemoryData.features.length,
-      note: 'Data is stored in memory. For persistent storage, consider using Vercel KV or a database.'
+      message: 'All properties reset successfully and saved to Redis Cloud',
+      totalFeatures: (geoJsonData as any).features.length
     });
 
   } catch (error) {
