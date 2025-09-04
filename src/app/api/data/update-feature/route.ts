@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// In-memory storage for demo purposes
+// In production, you should use Vercel KV or a database
+let inMemoryData: any = null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,79 +36,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Path to the commercial buildings GeoJSON file
-    const filePath = path.join(process.cwd(), 'public', 'new data', 'rumah_komersil.geojson');
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json(
-        { error: 'GeoJSON file not found' },
-        { status: 404 }
-      );
+    // If we don't have data in memory, try to fetch it from the static file
+    if (!inMemoryData) {
+      try {
+        const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/new data/rumah_komersil.geojson`);
+        if (response.ok) {
+          inMemoryData = await response.json();
+        } else {
+          return NextResponse.json(
+            { error: 'Unable to load GeoJSON data' },
+            { status: 500 }
+          );
+        }
+      } catch (error) {
+        return NextResponse.json(
+          { error: 'Failed to load GeoJSON data' },
+          { status: 500 }
+        );
+      }
     }
-
-    // Read the current GeoJSON file
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const geoJsonData = JSON.parse(fileContent);
-
-    // Debug: Log available features
-    console.log('GeoJSON Debug:', {
-      totalFeatures: geoJsonData.features?.length || 0,
-      firstFeatureProperties: geoJsonData.features?.[0]?.properties || {},
-      featureIds: geoJsonData.features?.slice(0, 10).map((f: any) => ({
-        OBJECTID: f.properties?.OBJECTID,
-        Id: f.properties?.Id,
-        id: f.properties?.id,
-        OID_: f.properties?.OID_,
-        ID: f.properties?.ID,
-        allProps: Object.keys(f.properties || {})
-      })) || []
-    });
-
-    // Debug: Search for features with specific OBJECTID values
-    const featuresWithObjectId = geoJsonData.features
-      .map((f: any, index: number) => ({ 
-        index, 
-        OBJECTID: f.properties?.OBJECTID,
-        Id: f.properties?.Id 
-      }))
-      .filter((f: any) => f.OBJECTID !== undefined || f.Id !== undefined);
-    
-    console.log('Features with IDs:', featuresWithObjectId.slice(0, 20));
-    
-    // Debug: Look specifically for the featureId we're searching for
-    const targetFeature = geoJsonData.features.find((f: any) => 
-      f.properties?.OBJECTID === featureId || f.properties?.Id === featureId
-    );
-    
-    if (targetFeature) {
-      console.log(`Found feature with ID ${featureId}:`, {
-        index: geoJsonData.features.indexOf(targetFeature),
-        properties: targetFeature.properties
-      });
-    } else {
-      console.log(`Feature with ID ${featureId} NOT FOUND in GeoJSON`);
-      
-      // Debug: Show what properties actually exist in the first few features
-      console.log('Available properties in first 3 features:');
-      geoJsonData.features.slice(0, 3).forEach((f: any, index: number) => {
-        console.log(`Feature ${index}:`, Object.keys(f.properties || {}));
-      });
-    }
-
-    // Debug: Log the specific featureId we're looking for
-    console.log('Looking for featureId:', {
-      featureId,
-      featureIdType: typeof featureId,
-      featureIdString: String(featureId)
-    });
 
     // Find the feature to update
     let featureIndex = -1;
     let foundFeature = null;
     
-    for (let i = 0; i < geoJsonData.features.length; i++) {
-      const feature = geoJsonData.features[i];
+    for (let i = 0; i < inMemoryData.features.length; i++) {
+      const feature = inMemoryData.features[i];
       const props = feature.properties || {};
       
       // Check all possible ID matches (including string conversions)
@@ -139,9 +94,9 @@ export async function POST(request: NextRequest) {
     }
     
     // If still not found, try to find by index (featureId might be the array index)
-    if (featureIndex === -1 && featureId >= 0 && featureId < geoJsonData.features.length) {
+    if (featureIndex === -1 && featureId >= 0 && featureId < inMemoryData.features.length) {
       console.log(`Trying to find feature by index: ${featureId}`);
-      const featureByIndex = geoJsonData.features[featureId];
+      const featureByIndex = inMemoryData.features[featureId];
       if (featureByIndex) {
         featureIndex = featureId;
         foundFeature = featureByIndex;
@@ -158,27 +113,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update the feature properties
+    // Update the feature properties in memory
     const updatedFeature = {
-      ...geoJsonData.features[featureIndex],
+      ...inMemoryData.features[featureIndex],
       properties: {
-        ...geoJsonData.features[featureIndex].properties,
+        ...inMemoryData.features[featureIndex].properties,
         ...properties
       }
     };
 
     // Replace the feature in the array
-    geoJsonData.features[featureIndex] = updatedFeature;
+    inMemoryData.features[featureIndex] = updatedFeature;
 
-    // Write the updated data back to the file (no backup)
-    fs.writeFileSync(filePath, JSON.stringify(geoJsonData, null, 2), 'utf-8');
+    // Note: In Vercel's serverless environment, we can't write to files
+    // The data is stored in memory for the duration of this function execution
+    // For persistent storage, you would need to use Vercel KV or a database
 
     // Return success response
     return NextResponse.json({
       success: true,
-      message: 'Feature updated successfully',
+      message: 'Feature updated successfully (stored in memory)',
       featureId,
-      updatedProperties: properties
+      updatedProperties: properties,
+      note: 'Data is stored in memory. For persistent storage, consider using Vercel KV or a database.'
     });
 
   } catch (error) {
