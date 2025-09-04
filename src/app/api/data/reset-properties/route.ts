@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { kv } from '@vercel/kv';
 
 export async function POST() {
   try {
-    const filePath = path.join(process.cwd(), 'public', 'new data', 'rumah_komersil.geojson');
+    // Get the current data from KV storage
+    const geoJsonData = await kv.get('rumah_komersil_data');
     
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
+    if (!geoJsonData) {
       return NextResponse.json(
-        { error: 'File not found' },
+        { error: 'Data not found in storage' },
         { status: 404 }
       );
     }
-
-    // Read the current GeoJSON file
-    const geoJsonData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     
     // Reset all features to have only basic properties
     geoJsonData.features = geoJsonData.features.map((feature: any, index: number) => {
@@ -31,8 +27,8 @@ export async function POST() {
       };
     });
 
-    // Write the reset data back to the file
-    fs.writeFileSync(filePath, JSON.stringify(geoJsonData, null, 2), 'utf-8');
+    // Save the reset data back to KV storage
+    await kv.set('rumah_komersil_data', geoJsonData);
 
     return NextResponse.json({
       success: true,

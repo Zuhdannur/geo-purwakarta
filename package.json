@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/leaflet": "^1.9.20",
+    "@vercel/kv": "^1.0.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.539.0",
     "mapbox-gl": "^3.14.0",
