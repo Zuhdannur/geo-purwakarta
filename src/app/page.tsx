@@ -9,12 +9,14 @@ import UploadShapefile from '@/components/UploadShapefile';
 // Dynamically import components to avoid SSR issues
 const Sidebar = dynamic(() => import('@/components/Sidebar'), { ssr: false });
 const MapboxMap = dynamic(() => import('@/components/MapboxMap'), { ssr: false });
+const StatisticsSection = dynamic(() => import('@/components/StatisticsSection'), { ssr: false });
+const UserDataPage = dynamic(() => import('@/components/UserDataPage'), { ssr: false });
 
 export default function Home() {
   const router = useRouter();
   const { isAuthenticated, isLoading, logout, user } = useAuth();
   
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>('beranda');
   const [selectedLayers, setSelectedLayers] = useState<string[]>([
     'layer-administrasi',
     'layer-kawasan-lahan-terbangun'
@@ -71,7 +73,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className={`flex h-screen ${activeMenu === 'beranda' || activeMenu === 'user-data' ? 'bg-white' : 'bg-gray-100'}`}>
       <Sidebar 
         activeMenu={activeMenu} 
         setActiveMenu={setActiveMenu}
@@ -86,17 +88,28 @@ export default function Home() {
         onLogout={handleLogout}
       />
       <div className="flex-1 relative">
-        
-        <MapboxMap 
-          activeMenu={activeMenu}
-          selectedLayers={selectedLayers}
-          setSelectedLayers={setSelectedLayers}
-          showBaseMap={showBaseMap}
-          setShowBaseMap={setShowBaseMap}
-          selectedKecamatan={selectedKecamatan}
-          selectedKelurahan={selectedKelurahan}
-          uploadedLayers={uploadedLayers}
-        />
+        {activeMenu === 'beranda' ? (
+          <div className="h-full w-full overflow-y-auto bg-white">
+            <div className="w-full p-4">
+              <StatisticsSection />
+            </div>
+          </div>
+        ) : activeMenu === 'user-data' ? (
+          <div className="h-full w-full overflow-y-auto bg-white">
+            <UserDataPage />
+          </div>
+        ) : (
+          <MapboxMap 
+            activeMenu={activeMenu}
+            selectedLayers={selectedLayers}
+            setSelectedLayers={setSelectedLayers}
+            showBaseMap={showBaseMap}
+            setShowBaseMap={setShowBaseMap}
+            selectedKecamatan={selectedKecamatan}
+            selectedKelurahan={selectedKelurahan}
+            uploadedLayers={uploadedLayers}
+          />
+        )}
       </div>
     </div>
   );

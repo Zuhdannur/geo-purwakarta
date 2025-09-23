@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ChevronUp, ChevronDown, Check } from 'lucide-react';
-import StatisticsChart from './StatisticsChart';
+// Statistics are shown inline on the Beranda page now
 
 interface SidebarProps {
   activeMenu: string | null;
@@ -39,7 +39,7 @@ export default function Sidebar({
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['layer-administrasi', 'layer-selection']); // Default expanded
   const [showKecamatanDropdown, setShowKecamatanDropdown] = useState(false);
   const [showKelurahanDropdown, setShowKelurahanDropdown] = useState(false);
-  const [showStatistics, setShowStatistics] = useState(false);
+  // Statistics modal removed; statistics are displayed inline on Beranda page
 
   const kecamatanRef = useRef<HTMLDivElement>(null);
   const kelurahanRef = useRef<HTMLDivElement>(null);
@@ -228,15 +228,7 @@ export default function Sidebar({
       <div className="p-4 border-b border-gray-200 bg-gray-50">
         <h1 className="text-lg font-bold text-gray-800">Purwakarta Map</h1>
         <p className="text-sm text-gray-600 mt-1">Interactive Dashboard</p>
-        <button
-          onClick={() => setShowStatistics(true)}
-          className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Statistics
-        </button>
+       
         
         {/* Test button for commercial buildings layer */}
         {/* <button
@@ -271,6 +263,63 @@ export default function Sidebar({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
+        {/* Navigation Section */}
+        <div className="mb-6">
+          {/* Beranda */}
+          <button
+            onClick={() => {
+              setActiveMenu('beranda');
+            }}
+            className={`w-full flex items-center justify-between p-3 text-left rounded-lg transition-colors border ${
+              activeMenu === 'beranda'
+                ? 'bg-blue-50 border-blue-300 text-blue-800'
+                : 'hover:bg-gray-50 border-gray-200 text-gray-800'
+            }`}
+          >
+            <span className="font-semibold">Beranda</span>
+          </button>
+
+          {/* Master Data (Dropdown) */}
+          <div className="mt-3">
+            <button
+              onClick={() => toggleMenu('master-data')}
+              className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              <span className="font-semibold text-gray-800">Master Data</span>
+              {isMenuExpanded('master-data') ? (
+                <ChevronUp size={16} className="text-blue-600" />
+              ) : (
+                <ChevronDown size={16} className="text-blue-600" />
+              )}
+            </button>
+
+            {isMenuExpanded('master-data') && (
+              <div className="mt-3 space-y-2 pl-2">
+                <button
+                  onClick={() => setActiveMenu('user-data')}
+                  className={`w-full flex items-center justify-between p-3 text-left rounded-md transition-colors border text-sm ${
+                    activeMenu === 'user-data'
+                      ? 'bg-blue-50 border-blue-300 text-blue-800'
+                      : 'hover:bg-gray-50 border-gray-200 text-gray-800'
+                  }`}
+                >
+                  <span>User Data</span>
+                </button>
+                <button
+                  onClick={() => setActiveMenu('peta-data')}
+                  className={`w-full flex items-center justify-between p-3 text-left rounded-md transition-colors border text-sm ${
+                    activeMenu === 'peta-data'
+                      ? 'bg-blue-50 border-blue-300 text-blue-800'
+                      : 'hover:bg-gray-50 border-gray-200 text-gray-800'
+                  }`}
+                >
+                  <span>Peta Data</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Layer Administrasi Section */}
         <div className="mb-6">
           <button
@@ -422,11 +471,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Statistics Chart Modal */}
-      <StatisticsChart 
-        isOpen={showStatistics} 
-        onClose={() => setShowStatistics(false)} 
-      />
+      {/* Inline statistics rendered on Beranda page */}
     </div>
   );
 } 
