@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import * as AlertDialog from '@radix-ui/react-alert-dialog';
 
 type UserRecord = {
   id: string;
@@ -137,13 +139,14 @@ export default function UserDataPage() {
         </div>
       </div>
 
-      {/* Create/Edit Dialog */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md rounded-lg shadow-lg border border-gray-200 p-5">
+      {/* Create/Edit Dialog (Radix UI) */}
+      <Dialog.Root open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content className="fixed z-50 left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg border border-gray-200 p-5 focus:outline-none">
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">{isEditing ? 'Edit User' : 'Create User'}</h2>
-              <p className="text-xs text-gray-500">Fill the required fields below.</p>
+              <Dialog.Title className="text-lg font-semibold text-gray-900">{isEditing ? 'Edit User' : 'Create User'}</Dialog.Title>
+              <Dialog.Description className="text-xs text-gray-500">Fill the required fields below.</Dialog.Description>
             </div>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
@@ -167,12 +170,14 @@ export default function UserDataPage() {
               </div>
             </div>
             <div className="mt-6 flex items-center justify-end gap-2">
-              <button
-                onClick={() => { resetForm(); }}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
-              >
-                Cancel
-              </button>
+              <Dialog.Close asChild>
+                <button
+                  onClick={() => { resetForm(); }}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
+                >
+                  Cancel
+                </button>
+              </Dialog.Close>
               {isEditing ? (
                 <button
                   onClick={handleUpdate}
@@ -189,35 +194,46 @@ export default function UserDataPage() {
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      )}
+            <Dialog.Close asChild>
+              <button aria-label="Close" className="absolute top-3 right-3 inline-flex items-center justify-center rounded-full p-1 text-gray-500 hover:bg-gray-100">
+                <span className="sr-only">Close</span>
+                ×
+              </button>
+            </Dialog.Close>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
-      {/* Delete Confirmation Dialog */}
-      {isDeleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md rounded-lg shadow-lg border border-gray-200 p-5">
-            <div className="mb-2">
-              <h2 className="text-lg font-semibold text-gray-900">Delete User</h2>
-            </div>
-            <p className="text-sm text-gray-700">Are you sure you want to delete this user? This action cannot be undone.</p>
+      {/* Delete Confirmation Dialog (Radix UI) */}
+      <AlertDialog.Root open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <AlertDialog.Content className="fixed z-50 left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg border border-gray-200 p-5 focus:outline-none">
+            <AlertDialog.Title className="text-lg font-semibold text-gray-900">Delete User</AlertDialog.Title>
+            <AlertDialog.Description className="mt-2 text-sm text-gray-700">
+              Are you sure you want to delete this user? This action cannot be undone.
+            </AlertDialog.Description>
             <div className="mt-6 flex items-center justify-end gap-2">
-              <button
-                onClick={() => { setIsDeleteOpen(false); setPendingDeleteId(null); }}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => pendingDeleteId && handleDelete(pendingDeleteId)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm"
-              >
-                Delete
-              </button>
+              <AlertDialog.Cancel asChild>
+                <button
+                  onClick={() => { setPendingDeleteId(null); }}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
+                >
+                  Cancel
+                </button>
+              </AlertDialog.Cancel>
+              <AlertDialog.Action asChild>
+                <button
+                  onClick={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  Delete
+                </button>
+              </AlertDialog.Action>
             </div>
-          </div>
-        </div>
-      )}
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
     </div>
   );
 }
