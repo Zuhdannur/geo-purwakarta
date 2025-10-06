@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Eye, EyeOff, Info } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface LegendProps {
   selectedLayers: string[];
@@ -51,17 +53,17 @@ export default function Legend({ selectedLayers, selectedFeature }: LegendProps)
   return (
     <div className="absolute bottom-4 right-4 z-40">
       {/* Toggle Button */}
-      <button
-        onClick={() => setIsVisible(!isVisible)}
-        className="mb-2 p-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
-      >
+      <Button variant="outline" size="icon" onClick={() => setIsVisible(!isVisible)} className="mb-2">
         {isVisible ? <EyeOff size={20} /> : <Eye size={20} />}
-      </button>
+      </Button>
 
       {/* Legend Panel */}
       {isVisible && (
-        <div className="bg-white rounded-lg shadow-lg p-4 max-w-80 max-h-96 overflow-y-auto">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Legend</h3>
+        <Card className="max-w-80 max-h-96 overflow-y-auto">
+          <CardHeader>
+            <CardTitle className="text-lg">Legend</CardTitle>
+          </CardHeader>
+          <CardContent>
           
           {/* Selected Feature Info */}
           {selectedFeature && (
@@ -103,7 +105,8 @@ export default function Legend({ selectedLayers, selectedFeature }: LegendProps)
               </div>
             );
           })}
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

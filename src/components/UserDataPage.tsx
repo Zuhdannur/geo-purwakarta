@@ -1,33 +1,61 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type UserRecord = {
-  id: string;
-  username: string;
-  password: string;
+  id: number;
+  username: string; // mapped from email
+  password?: string; // only for create/update, not shown from API
 };
 
 export default function UserDataPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
 
   useEffect(() => {
-    // Seed with sample user for first-time UX; in real app load from API
-    setUsers([
-      { id: crypto.randomUUID(), username: 'admin', password: 'secret' },
-      { id: crypto.randomUUID(), username: 'operator', password: 'purwakarta' }
-    ]);
+    const loadUsers = async () => {
+      try {
+        const res = await fetch('/api/users', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to load users');
+        const data = await res.json();
+        const mapped: UserRecord[] = (Array.isArray(data) ? data : []).map((u: any) => ({ id: u.id, username: u.email }));
+        setUsers(mapped);
+      } catch (e: any) {
+        setError(e?.message || 'Failed to load users');
+      }
+    };
+    loadUsers();
   }, []);
 
   const resetForm = () => {
@@ -35,33 +63,80 @@ export default function UserDataPage() {
     setPassword('');
     setEditingId(null);
     setIsFormOpen(false);
+    setIsSubmitting(false);
+    setError(null);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!username.trim() || !password.trim()) return;
-    const newUser: UserRecord = { id: crypto.randomUUID(), username: username.trim(), password: password.trim() };
-    setUsers([newUser, ...users]);
-    resetForm();
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: username.trim(), password: password.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to create user');
+      }
+      const created = await res.json();
+      setUsers(prev => [{ id: created.id, username: created.email }, ...prev]);
+      resetForm();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to create user');
+      setIsSubmitting(false);
+    }
   };
 
   const startEdit = (user: UserRecord) => {
     setEditingId(user.id);
     setUsername(user.username);
-    setPassword(user.password);
+    setPassword('');
     setIsFormOpen(true);
   };
 
-  const handleUpdate = () => {
-    if (!editingId) return;
-    setUsers(prev => prev.map(u => (u.id === editingId ? { ...u, username: username.trim(), password: password.trim() } : u)));
-    resetForm();
+  const handleUpdate = async () => {
+    if (editingId == null) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const payload: any = { email: username.trim() };
+      if (password.trim()) payload.password = password.trim();
+      const res = await fetch(`/api/users/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to update user');
+      }
+      const updated = await res.json();
+      setUsers(prev => prev.map(u => (u.id === editingId ? { id: updated.id, username: updated.email } : u)));
+      resetForm();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to update user');
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
-    if (editingId === id) resetForm();
-    setIsDeleteOpen(false);
-    setPendingDeleteId(null);
+  const handleDelete = async (id: number) => {
+    try {
+      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to delete user');
+      }
+      setUsers(prev => prev.filter(u => u.id !== id));
+      if (editingId === id) resetForm();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to delete user');
+    } finally {
+      setIsDeleteOpen(false);
+      setPendingDeleteId(null);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -76,20 +151,20 @@ export default function UserDataPage() {
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">User Data</h1>
-          <p className="text-sm text-gray-600">Manage application users (UI only).</p>
+          <p className="text-sm text-gray-600">Manage application users</p>
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">{error}</div>
+      )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setIsFormOpen(true); setEditingId(null); setUsername(''); setPassword(''); }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
-          >
+          <Button onClick={() => { setIsFormOpen(true); setEditingId(null); setUsername(''); setPassword(''); }}>
             Add User
-          </button>
-          <input
+          </Button>
+          <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search username..."
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-56"
           />
         </div>
       </div>
@@ -100,21 +175,20 @@ export default function UserDataPage() {
           <table className="min-w-full border-collapse">
             <thead>
               <tr className="bg-gray-50">
-                <th className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider px-4 py-3 border-b">Username</th>
-                <th className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider px-4 py-3 border-b">Password</th>
+                <th className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider px-4 py-3 border-b">Username (Email)</th>
                 <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wider px-4 py-3 border-b">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={3}>No users</td>
+                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={2}>No users</td>
                 </tr>
               ) : (
                 filtered.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-800 border-t">{u.username}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500 border-t">{u.password}</td>
+                    
                     <td className="px-4 py-3 text-sm text-gray-800 border-t">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -140,100 +214,48 @@ export default function UserDataPage() {
       </div>
 
       {/* Create/Edit Dialog (Radix UI) */}
-      <Dialog.Root open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-          <Dialog.Content className="fixed z-50 left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg border border-gray-200 p-5 focus:outline-none">
-            <div className="mb-4">
-              <Dialog.Title className="text-lg font-semibold text-gray-900">{isEditing ? 'Edit User' : 'Create User'}</Dialog.Title>
-              <Dialog.Description className="text-xs text-gray-500">Fill the required fields below.</Dialog.Description>
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Edit User' : 'Create User'}</DialogTitle>
+            <DialogDescription>Fill the required fields below.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Username (Email)</Label>
+              <Input value={username} onChange={e => setUsername(e.target.value)} placeholder="Enter email" />
             </div>
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Username</label>
-                <input
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  placeholder="Enter username"
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label>Password {isEditing && <span className="text-xs text-muted-foreground">(leave blank to keep)</span>}</Label>
+              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={isEditing ? 'Leave blank to keep current password' : 'Enter password'} />
             </div>
-            <div className="mt-6 flex items-center justify-end gap-2">
-              <Dialog.Close asChild>
-                <button
-                  onClick={() => { resetForm(); }}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
-                >
-                  Cancel
-                </button>
-              </Dialog.Close>
-              {isEditing ? (
-                <button
-                  onClick={handleUpdate}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
-                >
-                  Update
-                </button>
-              ) : (
-                <button
-                  onClick={handleCreate}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm"
-                >
-                  Create
-                </button>
-              )}
-            </div>
-            <Dialog.Close asChild>
-              <button aria-label="Close" className="absolute top-3 right-3 inline-flex items-center justify-center rounded-full p-1 text-gray-500 hover:bg-gray-100">
-                <span className="sr-only">Close</span>
-                ×
-              </button>
-            </Dialog.Close>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => resetForm()}>Cancel</Button>
+            {isEditing ? (
+              <Button onClick={handleUpdate} disabled={isSubmitting}>Update</Button>
+            ) : (
+              <Button onClick={handleCreate} disabled={isSubmitting}>Create</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog (Radix UI) */}
-      <AlertDialog.Root open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialog.Portal>
-          <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-          <AlertDialog.Content className="fixed z-50 left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg border border-gray-200 p-5 focus:outline-none">
-            <AlertDialog.Title className="text-lg font-semibold text-gray-900">Delete User</AlertDialog.Title>
-            <AlertDialog.Description className="mt-2 text-sm text-gray-700">
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete this user? This action cannot be undone.
-            </AlertDialog.Description>
-            <div className="mt-6 flex items-center justify-end gap-2">
-              <AlertDialog.Cancel asChild>
-                <button
-                  onClick={() => { setPendingDeleteId(null); }}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
-                >
-                  Cancel
-                </button>
-              </AlertDialog.Cancel>
-              <AlertDialog.Action asChild>
-                <button
-                  onClick={() => pendingDeleteId && handleDelete(pendingDeleteId)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm"
-                >
-                  Delete
-                </button>
-              </AlertDialog.Action>
-            </div>
-          </AlertDialog.Content>
-        </AlertDialog.Portal>
-      </AlertDialog.Root>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingDeleteId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => pendingDeleteId && handleDelete(pendingDeleteId)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

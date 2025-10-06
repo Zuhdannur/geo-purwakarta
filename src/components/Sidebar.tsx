@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 // Statistics are shown inline on the Beranda page now
 
 interface SidebarProps {
@@ -266,24 +269,22 @@ export default function Sidebar({
         {/* Navigation Section */}
         <div className="mb-6">
           {/* Beranda */}
-          <button
+          <Button
             onClick={() => {
               setActiveMenu('beranda');
             }}
-            className={`w-full flex items-center justify-between p-3 text-left rounded-lg transition-colors border ${
-              activeMenu === 'beranda'
-                ? 'bg-blue-50 border-blue-300 text-blue-800'
-                : 'hover:bg-gray-50 border-gray-200 text-gray-800'
-            }`}
+            variant={activeMenu === 'beranda' ? 'secondary' : 'outline'}
+            className="w-full flex items-center justify-between"
           >
             <span className="font-semibold">Beranda</span>
-          </button>
+          </Button>
 
           {/* Master Data (Dropdown) */}
           <div className="mt-3">
-            <button
+            <Button
               onClick={() => toggleMenu('master-data')}
-              className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+              variant="ghost"
+              className="w-full flex items-center justify-between"
             >
               <span className="font-semibold text-gray-800">Master Data</span>
               {isMenuExpanded('master-data') ? (
@@ -291,30 +292,37 @@ export default function Sidebar({
               ) : (
                 <ChevronDown size={16} className="text-blue-600" />
               )}
-            </button>
+            </Button>
 
             {isMenuExpanded('master-data') && (
               <div className="mt-3 space-y-2 pl-2">
-                <button
-                  onClick={() => setActiveMenu('user-data')}
-                  className={`w-full flex items-center justify-between p-3 text-left rounded-md transition-colors border text-sm ${
+                <a
+                  href="/dashboard/users"
+                  className={`block w-full text-left rounded-md transition-colors text-sm ${
                     activeMenu === 'user-data'
-                      ? 'bg-blue-50 border-blue-300 text-blue-800'
-                      : 'hover:bg-gray-50 border-gray-200 text-gray-800'
+                      ? 'bg-blue-50 border border-blue-300 text-blue-800 p-3'
+                      : 'hover:bg-gray-50 border border-gray-200 text-gray-800 p-3'
                   }`}
                 >
                   <span>User Data</span>
-                </button>
-                <button
-                  onClick={() => setActiveMenu('peta-data')}
-                  className={`w-full flex items-center justify-between p-3 text-left rounded-md transition-colors border text-sm ${
-                    activeMenu === 'peta-data'
-                      ? 'bg-blue-50 border-blue-300 text-blue-800'
-                      : 'hover:bg-gray-50 border-gray-200 text-gray-800'
+                </a>
+                <a
+                  href="/dashboard/maps"
+                  className={`block w-full text-left rounded-md transition-colors text-sm ${
+                    activeMenu === 'maps'
+                      ? 'bg-blue-50 border border-blue-300 text-blue-800 p-3'
+                      : 'hover:bg-gray-50 border border-gray-200 text-gray-800 p-3'
                   }`}
                 >
+                  <span>Maps</span>
+                </a>
+                <Button
+                  onClick={() => setActiveMenu('peta-data')}
+                  variant={activeMenu === 'peta-data' ? 'secondary' : 'outline'}
+                  className="w-full flex items-center justify-between text-left"
+                >
                   <span>Peta Data</span>
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -322,9 +330,10 @@ export default function Sidebar({
 
         {/* Layer Administrasi Section */}
         <div className="mb-6">
-          <button
+          <Button
             onClick={() => toggleMenu('layer-administrasi')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+            variant="ghost"
+            className="w-full flex items-center justify-between"
           >
             <span className="font-semibold text-gray-800">Layer Administrasi</span>
             {isMenuExpanded('layer-administrasi') ? (
@@ -332,58 +341,40 @@ export default function Sidebar({
             ) : (
               <ChevronDown size={16} className="text-blue-600" />
             )}
-          </button>
+          </Button>
 
           {isMenuExpanded('layer-administrasi') && (
             <div className="mt-3 space-y-3">
               {/* Kecamatan Dropdown */}
-              <div className="relative" ref={kecamatanRef}>
-                <button
-                  onClick={() => setShowKecamatanDropdown(!showKecamatanDropdown)}
-                  className="w-full flex items-center justify-between p-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors"
-                >
-                  <span className="text-sm text-gray-700">{selectedKecamatan}</span>
-                  <ChevronDown size={16} className="text-gray-400" />
-                </button>
-                
-                {showKecamatanDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {kecamatanList.map((kecamatan, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleKecamatanSelect(kecamatan)}
-                        className="w-full px-3 py-2 text-left text-sm text-black hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                      >
+              <div>
+                <Select value={selectedKecamatan} onValueChange={handleKecamatanSelect}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Kecamatan" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-56">
+                    {kecamatanList.map((kecamatan) => (
+                      <SelectItem key={kecamatan} value={kecamatan}>
                         {kecamatan}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Kelurahan Dropdown */}
-              <div className="relative" ref={kelurahanRef}>
-                <button
-                  onClick={() => setShowKelurahanDropdown(!showKelurahanDropdown)}
-                  className="w-full flex items-center justify-between p-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors"
-                >
-                  <span className="text-sm text-gray-700">{selectedKelurahan}</span>
-                  <ChevronDown size={16} className="text-gray-400" />
-                </button>
-                
-                {showKelurahanDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {filteredKelurahanList.map((kelurahan, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleKelurahanSelect(kelurahan)}
-                        className="w-full px-3 py-2 text-left text-sm text-black hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                      >
+              <div>
+                <Select value={selectedKelurahan} onValueChange={handleKelurahanSelect}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Kelurahan/Desa" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-56">
+                    {filteredKelurahanList.map((kelurahan) => (
+                      <SelectItem key={kelurahan} value={kelurahan}>
                         {kelurahan}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
@@ -391,9 +382,10 @@ export default function Sidebar({
 
         {/* Layer Selection Section */}
         <div className="mb-6">
-          <button
+          <Button
             onClick={() => toggleMenu('layer-selection')}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+            variant="ghost"
+            className="w-full flex items-center justify-between"
           >
             <span className="font-semibold text-gray-800">Layer Selection</span>
             {isMenuExpanded('layer-selection') ? (
@@ -401,25 +393,18 @@ export default function Sidebar({
             ) : (
               <ChevronDown size={16} className="text-blue-600" />
             )}
-          </button>
+          </Button>
 
           {isMenuExpanded('layer-selection') && (
             <div className="mt-3 space-y-3">
               {/* Layer Checkboxes */}
               {Object.entries(layerConfigs).map(([layerId, config]) => (
                 <div key={layerId} className="flex items-start space-x-3">
-                  <button
-                    onClick={() => toggleLayer(layerId)}
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors mt-0.5 ${
-                      selectedLayers.includes(layerId)
-                        ? 'bg-blue-600 border-blue-600'
-                        : 'border-gray-300 hover:border-blue-400'
-                    }`}
-                  >
-                    {selectedLayers.includes(layerId) && (
-                      <Check size={12} className="text-white" />
-                    )}
-                  </button>
+                  <Checkbox
+                    checked={selectedLayers.includes(layerId)}
+                    onCheckedChange={() => toggleLayer(layerId)}
+                    className="mt-0.5"
+                  />
                   <span className="text-sm text-gray-700 leading-relaxed">
                     {config.name}
                   </span>
@@ -438,30 +423,14 @@ export default function Sidebar({
       {/* Base Map Toggle - Bottom */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="flex items-start space-x-3">
-          <button
-            onClick={() => setShowBaseMap(!showBaseMap)}
-            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors mt-0.5 ${
-              showBaseMap
-                ? 'bg-blue-600 border-blue-600'
-                : 'border-gray-300 hover:border-blue-400'
-            }`}
-          >
-            {showBaseMap && (
-              <Check size={12} className="text-white" />
-            )}
-          </button>
+          <Checkbox checked={showBaseMap} onCheckedChange={() => setShowBaseMap(!showBaseMap)} className="mt-0.5" />
           <span className="text-sm text-gray-700">Peta Google</span>
         </div>
       </div>
 
       {/* Logout Button - Bottom */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <button
-          onClick={onLogout}
-          className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors text-sm font-medium"
-        >
-          Logout
-        </button>
+        <Button onClick={onLogout} variant="destructive" className="w-full">Logout</Button>
       </div>
 
       {/* Footer */}

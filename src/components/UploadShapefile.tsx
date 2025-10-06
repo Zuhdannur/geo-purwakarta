@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface UploadShapefileProps {
   onLoaded: (layer: { id: string; name: string; data: any }) => void;
@@ -156,78 +158,64 @@ export default function UploadShapefile({ onLoaded }: UploadShapefileProps) {
   };
 
   return (
-    <div className="flex flex-col gap-2 bg-white/95 border border-gray-200 rounded-md px-3 py-2 shadow-md">
-      <div className="flex items-center gap-2">
-        <input
-          type="file"
-          accept=".zip"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="text-sm"
-        />
-        <button
-          onClick={handleUpload}
-          disabled={!file || loading}
-          className={`text-sm px-3 py-1 rounded-md text-white ${loading || !file ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
-        >
-          {loading ? 'Uploading...' : 'Upload .zip'}
-        </button>
-        <button
-          onClick={loadPreparedList}
-          disabled={loadingPrepared}
-          className={`text-sm px-3 py-1 rounded-md border ${loadingPrepared ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
-        >
-          {loadingPrepared ? 'Loading…' : 'Browse prepared'}
-        </button>
-      </div>
-      {error && <span className="text-xs text-red-600">{error}</span>}
-      {saveMsg && <span className="text-xs text-green-700">{saveMsg}</span>}
-      {showPrepared && (
-        <div className="max-h-64 overflow-auto border-t pt-2">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <div className="text-xs text-gray-700">{selectedPaths.size} selected</div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={combineSelected}
-                disabled={selectedPaths.size === 0 || loading}
-                className={`text-xs px-2 py-1 rounded ${selectedPaths.size === 0 || loading ? 'bg-gray-300 text-gray-600' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
-              >
-                Combine & Load
-              </button>
-              <button
-                onClick={combineAndSave}
-                disabled={selectedPaths.size === 0 || loading}
-                className={`text-xs px-2 py-1 rounded ${selectedPaths.size === 0 || loading ? 'bg-gray-300 text-gray-600' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
-              >
-                Combine & Save
-              </button>
-            </div>
-          </div>
-          {prepared.length === 0 && (
-            <div className="text-xs text-gray-500">No prepared zip files found.</div>
-          )}
-          {prepared.map((item, idx) => (
-            <div key={`${item.path}-${idx}`} className="flex items-center justify-between py-1">
-              <label className="flex items-center gap-2 min-w-0">
-                <input
-                  type="checkbox"
-                  checked={selectedPaths.has(item.path)}
-                  onChange={() => toggleSelect(item.path)}
-                />
-                <div className="text-xs text-gray-700 truncate" title={item.path}>
-                  <span className="font-semibold">{item.year}</span> – {item.name}
-                </div>
-              </label>
-              <button
-                onClick={() => loadPreparedZip(item)}
-                className="text-xs px-2 py-0.5 rounded bg-green-600 text-white hover:bg-green-700"
-              >
-                Load
-              </button>
-            </div>
-          ))}
+    <Card className="shadow-md">
+      <CardHeader>
+        <CardTitle className="text-base">Upload Shapefile</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept=".zip"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="text-sm"
+          />
+          <Button onClick={handleUpload} disabled={!file || loading}>
+            {loading ? 'Uploading...' : 'Upload .zip'}
+          </Button>
+          <Button variant="outline" onClick={loadPreparedList} disabled={loadingPrepared}>
+            {loadingPrepared ? 'Loading…' : 'Browse prepared'}
+          </Button>
         </div>
-      )}
-    </div>
+        {error && <span className="text-xs text-red-600">{error}</span>}
+        {saveMsg && <span className="text-xs text-green-700">{saveMsg}</span>}
+        {showPrepared && (
+          <div className="max-h-64 overflow-auto border-t pt-2">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <div className="text-xs text-gray-700">{selectedPaths.size} selected</div>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={combineSelected} disabled={selectedPaths.size === 0 || loading}>
+                  Combine & Load
+                </Button>
+                <Button size="sm" onClick={combineAndSave} disabled={selectedPaths.size === 0 || loading}>
+                  Combine & Save
+                </Button>
+              </div>
+            </div>
+            {prepared.length === 0 && (
+              <div className="text-xs text-gray-500">No prepared zip files found.</div>
+            )}
+            {prepared.map((item, idx) => (
+              <div key={`${item.path}-${idx}`} className="flex items-center justify-between py-1">
+                <label className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={selectedPaths.has(item.path)}
+                    onChange={() => toggleSelect(item.path)}
+                  />
+                  <div className="text-xs text-gray-700 truncate" title={item.path}>
+                    <span className="font-semibold">{item.year}</span> – {item.name}
+                  </div>
+                </label>
+                <Button size="sm" onClick={() => loadPreparedZip(item)}>
+                  Load
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

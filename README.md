@@ -66,6 +66,39 @@ npm run dev
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Local database (SQLite) and users API
+
+This project uses Prisma with SQLite for local development.
+
+- The database file is `prisma/dev.db`.
+- Prisma schema is at `prisma/schema.prisma`.
+
+Common commands:
+
+```bash
+# Generate Prisma client
+npx prisma generate
+
+# Create a new migration after editing schema.prisma
+npx prisma migrate dev --name your_migration_name
+
+# Inspect the DB
+npx prisma studio
+```
+
+Users API endpoints:
+
+- `GET /api/users` — list users
+- `POST /api/users` — create user `{ email, name?, password, role? }`
+- `GET /api/users/[id]` — get user by id
+- `PATCH /api/users/[id]` — update user fields; to change password send `{ password }`
+- `DELETE /api/users/[id]` — delete user
+
+Notes:
+
+- Passwords are stored as bcrypt hashes and never returned by the API.
+- `role` supports `USER` (default) or `ADMIN`.
+
 ### Building for Production
 
 ```bash

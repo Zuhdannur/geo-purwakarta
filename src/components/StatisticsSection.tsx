@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface GroupedData {
   kecamatan: string;
@@ -151,10 +152,14 @@ export default function StatisticsSection() {
 
   return (
     <div className="w-full overflow-x-auto p-2 md:p-4">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Statistics: Layer Sebaran Rumah Komersil per Kecamatan</h2>
-        <p className="text-gray-600 mt-1 text-sm">Overview of commercial buildings by district and year.</p>
-      </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-2xl">Statistics: Layer Sebaran Rumah Komersil per Kecamatan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600 text-sm">Overview of commercial buildings by district and year.</p>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
@@ -162,13 +167,17 @@ export default function StatisticsSection() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">Chart Information</h3>
-            <p className="text-blue-700 text-sm">
-              This chart displays the count of commercial buildings (Layer Sebaran Rumah Komersil)
-              for each Kecamatan in Purwakarta.
-            </p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Chart Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-blue-700 text-sm">
+                This chart displays the count of commercial buildings (Layer Sebaran Rumah Komersil)
+                for each Kecamatan in Purwakarta.
+              </p>
+            </CardContent>
+          </Card>
 
           <div className="h-96 min-w-[720px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -186,37 +195,52 @@ export default function StatisticsSection() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Total Kecamatan</h4>
-              <p className="text-2xl font-bold text-blue-600">{chartData.length}</p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Total Buildings</h4>
-              <p className="text-2xl font-bold text-green-600">
-                {chartData.length > 0 
-                  ? chartData.reduce((sum, item) => {
-                      const itemSum = Object.keys(item).filter(key => key !== 'kecamatan').reduce((yearSum, year) => yearSum + (item[year] as number), 0);
-                      return sum + itemSum;
-                    }, 0)
-                  : 0}
-              </p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Average per Kecamatan</h4>
-              <p className="text-2xl font-bold text-purple-600">
-                {chartData.length > 0 
-                  ? Math.round(chartData.reduce((sum, item) => {
-                      const itemSum = Object.keys(item).filter(key => key !== 'kecamatan').reduce((yearSum, year) => yearSum + (item[year] as number), 0);
-                      return sum + itemSum;
-                    }, 0) / chartData.length)
-                  : 0}
-              </p>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Total Kecamatan</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-blue-600">{chartData.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Total Buildings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-green-600">
+                  {chartData.length > 0 
+                    ? chartData.reduce((sum, item) => {
+                        const itemSum = Object.keys(item).filter(key => key !== 'kecamatan').reduce((yearSum, year) => yearSum + (item[year] as number), 0);
+                        return sum + itemSum;
+                      }, 0)
+                    : 0}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Average per Kecamatan</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-purple-600">
+                  {chartData.length > 0 
+                    ? Math.round(chartData.reduce((sum, item) => {
+                        const itemSum = Object.keys(item).filter(key => key !== 'kecamatan').reduce((yearSum, year) => yearSum + (item[year] as number), 0);
+                        return sum + itemSum;
+                      }, 0) / chartData.length)
+                    : 0}
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-semibold text-gray-800 mb-3">Top 5 Kecamatan by Commercial Buildings</h4>
-            <div className="space-y-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Top 5 Kecamatan by Commercial Buildings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
               {chartData
                 .slice(0, 5)
                 .map((item, index) => {
@@ -228,15 +252,20 @@ export default function StatisticsSection() {
                     </div>
                   );
                 })}
-            </div>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <h4 className="font-semibold text-yellow-800 mb-2">Data Source</h4>
-            <p className="text-yellow-700 text-sm">
-              This analysis uses GeoJSON data from the Purwakarta region.
-            </p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Data Source</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-yellow-700 text-sm">
+                This analysis uses GeoJSON data from the Purwakarta region.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

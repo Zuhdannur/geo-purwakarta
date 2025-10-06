@@ -3,6 +3,8 @@
 import { X, Edit3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import CommercialBuildingForm from './CommercialBuildingForm';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 interface FeatureDrawerProps {
   isOpen: boolean;
@@ -327,64 +329,36 @@ export default function FeatureDrawer({
 
   return (
     <>
-      {/* Right Drawer with enhanced slide animation */}
-      <div className={`fixed right-0 top-0 h-full z-[9999] transition-all duration-500 ease-out transform ${
-        isOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
-        <div className={`h-full w-96 bg-white/95 backdrop-blur-md shadow-2xl border-l border-gray-200/50 transition-all duration-700 ease-out ${
-          isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-        }`}>
-          <div className="flex flex-col h-full">
+      <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <SheetContent side="right" className="w-96 p-0">
+          <div className="flex flex-col h-full bg-white/95 backdrop-blur-md">
             {/* Action Buttons - Above Title */}
             <div className="flex items-center justify-end gap-3 p-4 pb-2 bg-gradient-to-r from-gray-50/90 to-gray-100/90 backdrop-blur-sm border-b border-gray-200/50">
               {isCommercialBuildings && (
                 <>
                   {!isEditing ? (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg flex items-center gap-2 font-medium border border-blue-400/30"
-                      title="Edit feature"
-                    >
-                      <Edit3 size={16} className="animate-pulse" />
+                    <Button onClick={() => setIsEditing(true)} className="gap-2" title="Edit feature">
+                      <Edit3 size={16} />
                       <span className="text-sm">Edit</span>
-                    </button>
+                    </Button>
                   ) : (
-                    <button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium border border-green-400/30"
-                      title="Save changes"
-                    >
+                    <Button onClick={handleSave} disabled={isSaving} className="gap-2" title="Save changes">
                       {isSaving ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span className="text-sm">Saving...</span>
-                        </>
+                        <span className="text-sm">Saving...</span>
                       ) : (
-                        <>
-                          <span className="text-sm">Save</span>
-                        </>
+                        <span className="text-sm">Save</span>
                       )}
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    onClick={handleResetAll}
-                    disabled={isSaving}
-                    className="px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-orange-400/30"
-                    title="Reset all properties"
-                  >
+                  <Button onClick={handleResetAll} disabled={isSaving} className="gap-2" title="Reset all properties">
                     <span className="text-sm">🔄 Reset All</span>
-                  </button>
+                  </Button>
                 </>
               )}
-              <button
-                onClick={onClose}
-                className="px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg flex items-center gap-2 border border-red-400/30"
-                title="Close drawer"
-              >
+              <Button variant="destructive" onClick={onClose} className="gap-2" title="Close drawer">
                 <X size={18} />
                 <span className="text-sm font-medium">Close</span>
-              </button>
+              </Button>
             </div>
 
             {/* Enhanced Header with animations */}
@@ -536,8 +510,8 @@ export default function FeatureDrawer({
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 } 

@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Layers, X, Check, Map } from 'lucide-react';
+import { Layers, X, Map } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface LayerSelectorProps {
   selectedLayers: string[];
@@ -63,117 +66,67 @@ export default function LayerSelector({
   return (
     <div className="absolute top-4 right-4 z-[9999]" ref={panelRef}>
       {/* Toggle Button */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors border border-gray-200"
-      >
+      <Button variant="outline" onClick={() => setIsExpanded(!isExpanded)} className="flex items-center space-x-2">
         <Layers size={20} className="text-gray-700" />
         <span className="text-sm font-medium text-gray-700">Layers</span>
-        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-          {selectedLayers.length}
-        </span>
-      </button>
+        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{selectedLayers.length}</span>
+      </Button>
 
       {/* Layer Panel */}
       {isExpanded && (
-        <div className="absolute top-12 right-0 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999]">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800">Layer Selection</h3>
-            <button
-              onClick={() => setIsExpanded(false)}
-              className="p-1 hover:bg-gray-100 rounded"
-            >
+        <Card className="absolute top-12 right-0 w-80 z-[9999]">
+          <CardHeader className="flex items-center justify-between">
+            <CardTitle className="text-lg">Layer Selection</CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => setIsExpanded(false)}>
               <X size={16} />
-            </button>
-          </div>
-
-          {/* Base Map Toggle */}
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setShowBaseMap(!showBaseMap)}
-                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                  showBaseMap
-                    ? 'bg-green-600 border-green-600'
-                    : 'border-gray-300 hover:border-green-400'
-                }`}
-              >
-                {showBaseMap && (
-                  <Check size={12} className="text-white" />
-                )}
-              </button>
-              
-              <div className="flex items-center space-x-2">
-                <Map size={16} className="text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">Base Map</span>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mt-1 ml-8">
-              OpenStreetMap background tiles
-            </p>
-          </div>
-
-          {/* Layer List */}
-          <div className="max-h-96 overflow-y-auto">
-            {Object.entries(layerConfigs).map(([layerId, config]) => (
-              <div
-                key={layerId}
-                className="flex items-center space-x-3 p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-              >
-                <button
-                  onClick={() => toggleLayer(layerId)}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                    selectedLayers.includes(layerId)
-                      ? 'bg-blue-600 border-blue-600'
-                      : 'border-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  {selectedLayers.includes(layerId) && (
-                    <Check size={12} className="text-white" />
-                  )}
-                </button>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className="w-4 h-4 rounded border border-gray-300"
-                      style={{ backgroundColor: config.color }}
-                    />
-                    <span className="text-sm font-medium text-gray-700 truncate">
-                      {config.name}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {config.description}
-                  </p>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="border-b pb-3 mb-3">
+              <div className="flex items-center space-x-3">
+                <Checkbox checked={showBaseMap} onCheckedChange={() => setShowBaseMap(!showBaseMap)} />
+                <div className="flex items-center space-x-2">
+                  <Map size={16} className="text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Base Map</span>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Actions */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-            <div className="flex space-x-2">
-              <button
-                onClick={clearAllLayers}
-                className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Clear All
-              </button>
-              <button
-                onClick={loadAllLayers}
-                className="flex-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Load All
-              </button>
+              <p className="text-xs text-gray-500 mt-1 ml-6">OpenStreetMap background tiles</p>
             </div>
-            
-            <div className="mt-3 text-xs text-gray-500 text-center">
-              {selectedLayers.length} of {Object.keys(layerConfigs).length} layers selected
+            <div className="max-h-96 overflow-y-auto">
+              {Object.entries(layerConfigs).map(([layerId, config]) => (
+                <div
+                  key={layerId}
+                  className="flex items-center space-x-3 p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                >
+                  <Checkbox checked={selectedLayers.includes(layerId)} onCheckedChange={() => toggleLayer(layerId)} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <div
+                        className="w-4 h-4 rounded border border-gray-300"
+                        style={{ backgroundColor: config.color }}
+                      />
+                      <span className="text-sm font-medium text-gray-700 truncate">
+                        {config.name}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {config.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
+            <div className="pt-4">
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={clearAllLayers} className="flex-1">Clear All</Button>
+                <Button onClick={loadAllLayers} className="flex-1">Load All</Button>
+              </div>
+              <div className="mt-3 text-xs text-gray-500 text-center">
+                {selectedLayers.length} of {Object.keys(layerConfigs).length} layers selected
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

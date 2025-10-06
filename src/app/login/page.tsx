@@ -13,7 +13,7 @@ function LoginForm() {
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') || '/';
+  const next = searchParams.get('next') || '/dashboard';
 
   useEffect(() => {
     // If already authenticated, redirect to the intended page
