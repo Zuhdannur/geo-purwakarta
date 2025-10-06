@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, name: true, createdAt: true, updatedAt: true },
     })
     return NextResponse.json(created, { status: 201 })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'failed to create map' }, { status: 500 })
   }
 }

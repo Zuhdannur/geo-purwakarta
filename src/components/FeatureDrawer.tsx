@@ -329,7 +329,7 @@ export default function FeatureDrawer({
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Sheet open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
         <SheetContent side="right" className="w-96 p-0">
           <div className="flex flex-col h-full bg-white/95 backdrop-blur-md">
             {/* Action Buttons - Above Title */}

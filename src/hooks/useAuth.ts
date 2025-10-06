@@ -74,7 +74,7 @@ export function useAuth() {
       } else {
         return { success: false, error: data.error };
       }
-    } catch (error) {
+    } catch {
       return { success: false, error: 'Login failed' };
     }
   };

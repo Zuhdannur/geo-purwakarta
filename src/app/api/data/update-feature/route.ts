@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           );
         }
-      } catch (fetchError) {
+      } catch {
         return NextResponse.json(
           { error: 'Failed to load GeoJSON data' },
           { status: 500 }

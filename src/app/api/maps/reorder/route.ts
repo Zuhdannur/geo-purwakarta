@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       body.order.map(item => prisma.maps.update({ where: { id: item.id }, data: { sortOrder: item.sortOrder } }))
     )
     return NextResponse.json({ success: true })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'failed to reorder' }, { status: 500 })
   }
 }

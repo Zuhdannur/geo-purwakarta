@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const id = Number(params.id)
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const id = Number(resolvedParams.id)
   if (!Number.isInteger(id)) return NextResponse.json({ error: 'invalid id' }, { status: 400 })
 
   const user = await prisma.user.findUnique({
@@ -14,8 +15,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(user)
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const id = Number(params.id)
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const id = Number(resolvedParams.id)
   if (!Number.isInteger(id)) return NextResponse.json({ error: 'invalid id' }, { status: 400 })
 
   try {
@@ -45,8 +47,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const id = Number(params.id)
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const id = Number(resolvedParams.id)
   if (!Number.isInteger(id)) return NextResponse.json({ error: 'invalid id' }, { status: 400 })
   try {
     await prisma.user.delete({ where: { id } })

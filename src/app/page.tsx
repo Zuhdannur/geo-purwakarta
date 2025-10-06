@@ -102,7 +102,7 @@ function AllMapsViewer() {
           return null;
         };
         // Add each map as a layer in order
-        maps.forEach((m, idx) => {
+        maps.forEach((m) => {
           const sourceId = `maps-src-${m.id}`;
           try { if (map.getSource(sourceId)) map.removeSource(sourceId as any); } catch {}
           map.addSource(sourceId, { type: 'geojson', data: m.geojson });
@@ -209,7 +209,7 @@ function AllMapsViewer() {
       } catch {} };
     })();
     return () => cleanup();
-  }, [maps]);
+  }, [maps, colors, visible]);
 
   const toggleLayer = (id: number, checked: boolean | string) => {
     const vis = checked === true;

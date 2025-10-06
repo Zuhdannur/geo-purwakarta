@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { X } from 'lucide-react';
 
@@ -68,7 +68,7 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
     };
   };
 
-  const analyzeData = async () => {
+  const analyzeData = useCallback(async () => {
     setIsLoading(true);
     try {
       // Fetch the rumah komersil GeoJSON data
@@ -227,7 +227,7 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   if (!isOpen) return null;
 

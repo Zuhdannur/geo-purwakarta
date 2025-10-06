@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import FeatureDrawer from './FeatureDrawer';
@@ -79,11 +79,11 @@ const layerConfigs: { [key: string]: LayerConfig } = {
 };
 
 export default function MapboxMap({
-  activeMenu,
+  activeMenu: _activeMenu,
   selectedLayers,
-  setSelectedLayers,
+  setSelectedLayers: _setSelectedLayers,
   showBaseMap,
-  setShowBaseMap,
+  setShowBaseMap: _setShowBaseMap,
   selectedKecamatan,
   selectedKelurahan,
   uploadedLayers = [],
@@ -295,8 +295,8 @@ export default function MapboxMap({
             });
           }
         }
-      } catch (err) {
-        console.error('Error in handleFeatureClick:', err);
+      } catch {
+        console.error('Error in handleFeatureClick');
       }
     };
 
@@ -309,7 +309,105 @@ export default function MapboxMap({
         map.current.off('click', handleFeatureClick);
       }
     };
-  }, [selectedLayers, mapReady]); // This useEffect runs every time selectedLayers changes
+  }, [selectedLayers, mapReady, selectedFeature]); // This useEffect runs every time selectedLayers changes
+
+  // Reorder all layers to maintain proper stacking
+  const reorderAllLayers = useCallback(() => {
+    if (!map.current) return;
+
+    try {
+      // Get all loaded layers and sort them by priority
+      const loadedLayers = Object.keys(layers).sort((a, b) => {
+        const getPriority = (layerId: string) => {
+          switch (layerId) {
+            case 'layer-administrasi': return 1;
+            case 'layer-kawasan-lahan-terbangun': return 2;
+            case 'layer-sebaran-rumah-komersil': return 3;
+            case 'layer-kawasan-rawan-bencana': return 4;
+            case 'layer-kawasan-rencana-pola-ruang': return 5;
+            case 'layer-kemiringan-lereng': return 6;
+            default: return 10;
+          }
+        };
+        return getPriority(a) - getPriority(b);
+      });
+
+      // Reorder each layer group
+      loadedLayers.forEach((layerId) => {
+        const priority = loadedLayers.indexOf(layerId) + 1;
+        ensureLayerOrder(layerId, priority);
+      });
+
+      console.log('All layers reordered successfully');
+    } catch (error) {
+      console.error('Error reordering all layers:', error);
+    }
+  }, [layers]);
+
+  // Refresh commercial buildings layer data
+  const refreshCommercialBuildingsLayer = useCallback(async () => {
+    if (!map.current || !layers['layer-sebaran-rumah-komersil']) return;
+
+    try {
+      console.log('Refreshing commercial buildings layer data...');
+      
+      // Fetch updated data from KV storage
+      const response = await fetch('/api/data/get-rumah-komersil');
+      if (!response.ok) {
+        console.error('Failed to fetch updated data');
+        return;
+      }
+
+      const updatedData = await response.json();
+      
+      // Update the source data
+      const source = map.current.getSource('layer-sebaran-rumah-komersil') as mapboxgl.GeoJSONSource;
+      if (source && typeof source.setData === 'function') {
+        source.setData(updatedData);
+        console.log('Commercial buildings layer data refreshed successfully');
+      }
+      
+      // Also refresh the labels
+      const labelSource = map.current.getSource('layer-sebaran-rumah-komersil-labels') as mapboxgl.GeoJSONSource;
+      if (labelSource && typeof labelSource.setData === 'function') {
+        // Recreate label data from updated source
+        const labelData: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: updatedData.features.map((feature: any) => {
+            const center = getPolygonCenter(feature.geometry.coordinates);
+            if (center) {
+              // Calculate area in square meters
+              const area = calculatePolygonArea(feature.geometry.coordinates);
+              const areaText = area ? `${Math.round(area)} m²` : '';
+              
+              // Combine name and area with line break
+              const labelText = feature.properties.namaKawasanPerumahan || feature.properties.nama_kawasan || 'Unnamed';
+              const combinedLabel = areaText ? `${labelText}\n${areaText}` : labelText;
+              
+              return {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: center
+                },
+                properties: {
+                  combinedLabel: combinedLabel,
+                  featureId: feature.properties.feature_id || feature.properties.OBJECTID || feature.properties.Id
+                }
+              } as GeoJSON.Feature;
+            }
+            return null;
+          }).filter(Boolean) as GeoJSON.Feature[]
+        };
+        
+        labelSource.setData(labelData);
+        console.log('Commercial buildings labels refreshed successfully');
+      }
+    } catch (error) {
+      console.error('Error refreshing commercial buildings layer:', error);
+    }
+  }, [layers]);
+
 
   // Set up hover effects (runs every time selectedLayers changes)
   useEffect(() => {
@@ -399,7 +497,7 @@ export default function MapboxMap({
           }
           map.current!.getCanvas().style.cursor = '';
         }
-      } catch (err) {
+      } catch {
         // If querying fails for any reason, ensure cursor resets and don't throw
         map.current!.getCanvas().style.cursor = '';
       }
@@ -436,7 +534,7 @@ export default function MapboxMap({
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [selectedLayers, mapReady, layers]);
+  }, [selectedLayers, mapReady, layers, reorderAllLayers]);
 
   // Handle feature updates
   useEffect(() => {
@@ -444,7 +542,7 @@ export default function MapboxMap({
       // Refresh commercial buildings layer when feature is updated
       refreshCommercialBuildingsLayer();
     }
-  }, [onFeatureUpdated]);
+  }, [onFeatureUpdated, refreshCommercialBuildingsLayer]);
 
 
 
@@ -500,6 +598,7 @@ export default function MapboxMap({
     return `#${r255.toString(16).padStart(2, '0')}${g255.toString(16).padStart(2, '0')}${b255.toString(16).padStart(2, '0')}`;
   };
 
+
   // Load layers when map is ready
   useEffect(() => {
     if (!mapReady || !map.current) return;
@@ -552,7 +651,7 @@ export default function MapboxMap({
         reorderAllLayers();
       }, 100);
     }
-  }, [mapReady, selectedLayers]);
+  }, [mapReady, selectedLayers, layers, loading, reorderAllLayers]);
 
   // Render uploaded GeoJSON layers dynamically
   useEffect(() => {
@@ -605,7 +704,7 @@ export default function MapboxMap({
             paint: { 'circle-radius': 5, 'circle-color': '#27ae60', 'circle-stroke-width': 1, 'circle-stroke-color': '#145a32' }
           });
         }
-      } catch (e) {
+      } catch {
         // ignore duplicate add errors
       }
     });
@@ -677,7 +776,7 @@ export default function MapboxMap({
   }, [selectedKelurahan, selectedKecamatan]);
 
   // Load a single layer
-  const loadLayer = async (layerId: string) => {
+  const loadLayer = useCallback(async (layerId: string) => {
     console.log(`loadLayer called for: ${layerId}`);
     const config = layerConfigs[layerId];
     if (!config) {
@@ -1015,7 +1114,7 @@ export default function MapboxMap({
     } finally {
       setLoading(prev => ({ ...prev, [layerId]: false }));
     }
-  };
+  }, [setLoading, colorFromString]);
 
   // Ensure proper layer stacking order
   const ensureLayerOrder = (layerId: string, targetOrder: number) => {
@@ -1065,7 +1164,7 @@ export default function MapboxMap({
         return getLayerPriority(a) - getLayerPriority(b);
       });
 
-      sortedLayers.forEach((layerId, index) => {
+      sortedLayers.forEach((layerId) => {
         try {
           if (targetPosition === 0) {
             // For first position, move to the beginning
@@ -1077,7 +1176,7 @@ export default function MapboxMap({
               map.current!.moveLayer(layerId, referenceLayer.id);
             }
           }
-        } catch (e) {
+        } catch {
           // Layer might already be in the right position
           console.log(`Layer ${layerId} already in position or couldn't be moved`);
         }
@@ -1094,105 +1193,10 @@ export default function MapboxMap({
     }
   };
 
-  // Reorder all layers to maintain proper stacking
-  const reorderAllLayers = () => {
-    if (!map.current) return;
 
-    try {
-      // Get all loaded layers and sort them by priority
-      const loadedLayers = Object.keys(layers).sort((a, b) => {
-        const getPriority = (layerId: string) => {
-          switch (layerId) {
-            case 'layer-administrasi': return 1;
-            case 'layer-kawasan-lahan-terbangun': return 2;
-            case 'layer-sebaran-rumah-komersil': return 3;
-            case 'layer-kawasan-rawan-bencana': return 4;
-            case 'layer-kawasan-rencana-pola-ruang': return 5;
-            case 'layer-kemiringan-lereng': return 6;
-            default: return 10;
-          }
-        };
-        return getPriority(a) - getPriority(b);
-      });
-
-      // Reorder each layer group
-      loadedLayers.forEach((layerId, index) => {
-        const priority = index + 1;
-        ensureLayerOrder(layerId, priority);
-      });
-
-      console.log('All layers reordered successfully');
-    } catch (error) {
-      console.error('Error reordering all layers:', error);
-    }
-  };
-
-  // Refresh commercial buildings layer data
-  const refreshCommercialBuildingsLayer = async () => {
-    if (!map.current || !layers['layer-sebaran-rumah-komersil']) return;
-
-    try {
-      console.log('Refreshing commercial buildings layer data...');
-      
-      // Fetch updated data from KV storage
-      const response = await fetch('/api/data/get-rumah-komersil');
-      if (!response.ok) {
-        console.error('Failed to fetch updated data');
-        return;
-      }
-
-      const updatedData = await response.json();
-      
-      // Update the source data
-      const source = map.current.getSource('layer-sebaran-rumah-komersil') as mapboxgl.GeoJSONSource;
-      if (source && typeof source.setData === 'function') {
-        source.setData(updatedData);
-        console.log('Commercial buildings layer data refreshed successfully');
-      }
-      
-      // Also refresh the labels
-      const labelSource = map.current.getSource('layer-sebaran-rumah-komersil-labels') as mapboxgl.GeoJSONSource;
-      if (labelSource && typeof labelSource.setData === 'function') {
-        // Recreate label data from updated source
-        const labelData: GeoJSON.FeatureCollection = {
-          type: 'FeatureCollection',
-          features: updatedData.features.map((feature: any) => {
-            const center = getPolygonCenter(feature.geometry.coordinates);
-            if (center) {
-              // Calculate area in square meters
-              const area = calculatePolygonArea(feature.geometry.coordinates);
-              const areaText = area ? `${Math.round(area)} m²` : '';
-              
-              // Combine name and area with line break
-              const labelText = feature.properties.namaKawasanPerumahan || feature.properties.nama_kawasan || 'Unnamed';
-              const combinedLabel = areaText ? `${labelText}\n${areaText}` : labelText;
-              
-              return {
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: center
-                },
-                properties: {
-                  combinedLabel: combinedLabel,
-                  featureId: feature.properties.feature_id || feature.properties.OBJECTID || feature.properties.Id
-                }
-              } as GeoJSON.Feature;
-            }
-            return null;
-          }).filter(Boolean) as GeoJSON.Feature[]
-        };
-        
-        labelSource.setData(labelData);
-        console.log('Commercial buildings labels refreshed successfully');
-      }
-    } catch (error) {
-      console.error('Error refreshing commercial buildings layer:', error);
-    }
-  };
 
   // Remove a layer
-  const removeLayer = (layerId: string) => {
+  const removeLayer = useCallback((layerId: string) => {
     if (!map.current || !layers[layerId]) return;
 
     try {
@@ -1226,7 +1230,7 @@ export default function MapboxMap({
     } catch (error) {
       console.error(`Error removing layer ${layerId}:`, error);
     }
-  };
+  }, [layers]);
 
   // Add labels for administrative features
   const addLabels = (layerId: string, data: any) => {
@@ -1406,8 +1410,8 @@ export default function MapboxMap({
           map.current.moveLayer(labelLayerId, fillLayerId);
           console.log('Moved label layer above fill layer');
         }
-      } catch (e) {
-        console.log('Could not move label layer:', e);
+      } catch {
+        console.log('Could not move label layer');
       }
     } else {
       console.log('Label layer already exists:', labelLayerId);

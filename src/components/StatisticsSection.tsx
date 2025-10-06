@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
@@ -56,7 +56,7 @@ export default function StatisticsSection() {
     return { x: x / coordinates.length, y: y / coordinates.length };
   };
 
-  const analyzeData = async () => {
+  const analyzeData = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/data/get-rumah-komersil');
@@ -148,7 +148,7 @@ export default function StatisticsSection() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   return (
     <div className="w-full overflow-x-auto p-2 md:p-4">
