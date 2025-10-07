@@ -5,6 +5,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sidebar as UISidebar, SidebarProvider } from '@/components/ui/sidebar';
 // Statistics are shown inline on the Beranda page now
 
 interface SidebarProps {
@@ -226,7 +227,9 @@ export default function Sidebar({
   };
 
   return (
-    <div className="w-80 bg-white shadow-lg border-2 border-blue-800 flex flex-col">
+    <SidebarProvider>
+      <UISidebar className="bg-white border-r">
+        <div className="flex flex-col h-full w-(--sidebar-width)">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-gray-50">
         <h1 className="text-lg font-bold text-gray-800">Purwakarta Map</h1>
@@ -441,6 +444,8 @@ export default function Sidebar({
       </div>
 
       {/* Inline statistics rendered on Beranda page */}
-    </div>
+        </div>
+      </UISidebar>
+    </SidebarProvider>
   );
 } 

@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/sonner';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Purwakarta Map Dashboard',
+  title: 'Purwakarta GEO',
   description: 'Interactive map dashboard for Purwakarta',
 };
 
@@ -22,8 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Navbar />
-        <div className="pt-14 h-screen">
+        <div className="h-screen">
           {children}
         </div>
         <Toaster richColors closeButton />

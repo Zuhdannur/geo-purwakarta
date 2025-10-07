@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 function LoginForm() {
   const [username, setUsername] = useState('');
@@ -40,75 +44,64 @@ function LoginForm() {
 
   if (isAuthenticated) {
     return (
-      <div className="flex h-screen bg-gray-100 items-center justify-center">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-700 mb-2">Redirecting...</div>
-          <div className="text-gray-500">You are already logged in</div>
+          <div className="text-2xl font-bold mb-2">Redirecting...</div>
+          <div className="text-muted-foreground">You are already logged in</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-96">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Purwakarta Map Dashboard</h1>
-          <p className="text-gray-600 mt-2">Please sign in to continue</p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-          
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter username"
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter password"
-              required
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-        
-        <div className="mt-6 text-center text-sm text-gray-600">
-          <p>Demo credentials:</p>
-          <p className="font-mono bg-gray-100 px-2 py-1 rounded mt-1">
-            Username: admin | Password: admin
-          </p>
-        </div>
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="flex w-full max-w-md flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Login to your account</CardTitle>
+            <CardDescription>
+              Enter your username and password to access the dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="grid gap-4">
+              {error && (
+                <div className="border-destructive/50 text-destructive bg-destructive/10 border px-4 py-3 rounded-md text-sm">
+                  {error}
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? 'Signing in...' : 'Login'}
+                </Button>
+              
+                
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

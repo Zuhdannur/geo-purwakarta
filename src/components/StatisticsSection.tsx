@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 interface GroupedData {
   kecamatan: string;
@@ -150,6 +151,20 @@ export default function StatisticsSection() {
     }
   }, []);
 
+  const years = useMemo(() => {
+    if (!chartData.length) return [] as string[];
+    return Object.keys(chartData[0]).filter((k) => k !== 'kecamatan');
+  }, [chartData]);
+
+  const chartConfig = useMemo(() => {
+    const config: Record<string, { label: string; color: string }> = {};
+    years.forEach((year, index) => {
+      const hue = (index * 60) % 360;
+      config[year] = { label: `Year ${year}`, color: `hsl(${hue} 70% 50%)` };
+    });
+    return config;
+  }, [years]);
+
   return (
     <div className="w-full overflow-x-auto p-2 md:p-4">
       <Card className="mb-6">
@@ -179,19 +194,19 @@ export default function StatisticsSection() {
             </CardContent>
           </Card>
 
-          <div className="h-96 min-w-[720px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+          <div className="min-w-[720px]">
+            <ChartContainer className="h-96" config={chartConfig}>
+              <BarChart data={chartData} margin={{ top: 10, right: 16, left: 8, bottom: 64 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="kecamatan" angle={-45} textAnchor="end" height={80} interval={0} tick={{ fontSize: 12 }} />
-                <YAxis label={{ value: 'Count of Commercial Buildings', angle: -90, position: 'insideLeft' }} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: any, name: string) => [`${value} buildings`, name]} labelFormatter={(label: string) => `Kecamatan: ${label}`} />
-                <Legend />
-                {chartData.length > 0 && Object.keys(chartData[0]).filter(key => key !== 'kecamatan').map((year, index) => (
-                  <Bar key={year} dataKey={year} fill={`hsl(${index * 60}, 70%, 50%)`} name={`Year ${year}`} radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="kecamatan" angle={-45} textAnchor="end" height={64} interval={0} tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <ChartTooltip content={<ChartTooltipContent />} labelFormatter={(label: string) => `Kecamatan: ${label}`} />
+                <ChartLegend content={<ChartLegendContent />} />
+                {years.map((year) => (
+                  <Bar key={year} dataKey={year} fill={`var(--color-${year})`} name={`Year ${year}`} radius={[4, 4, 0, 0]} />
                 ))}
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

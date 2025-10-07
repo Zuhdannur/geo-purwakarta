@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 const UserDataPage = dynamic(() => import('@/components/UserDataPage'), { ssr: false });
 
-export default function UsersManagementPage() {
+export default function UsersPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const [isClient, setIsClient] = useState(false);
