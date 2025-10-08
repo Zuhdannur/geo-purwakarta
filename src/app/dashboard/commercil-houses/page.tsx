@@ -1,0 +1,1175 @@
+"use client";
+
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
+  Plus, 
+  Search, 
+  MoreHorizontal, 
+  Edit, 
+  Trash2, 
+  MapPin,
+  Building,
+  Calendar,
+  Table as TableIcon,
+  Layers
+} from 'lucide-react';
+import CommercialHouseForm from '@/components/CommercialHouseForm';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+// Set Mapbox access token
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+
+interface CommercialHouse {
+  id: string;
+  idSrk?: string;
+  kawasanPerumahan?: string;
+  alamat?: string;
+  kecamatan?: string;
+  kelurahanDesa?: string;
+  namaPengembang?: string;
+  noIzin?: string;
+  penutupLahan?: string;
+  rawanBencana?: string;
+  rencanaPolaRuang?: string;
+  koordinat?: string;
+  geometry?: any; // GeoJSON geometry
+  foto: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+interface MapData {
+  id: number;
+  name: string;
+  geojson: any;
+  sortOrder: number;
+}
+
+interface LayerConfig {
+  id: string;
+  name: string;
+  color: string;
+  outlineColor: string;
+}
+
+const layerConfigs: { [key: string]: LayerConfig } = {
+  'layer-peta-administrasi': {
+    id: 'layer-peta-administrasi',
+    name: 'Administrative Boundaries',
+    color: '#4a90e2',
+    outlineColor: '#2c5aa0'
+  },
+  'layer-sebaran-rumah-komersil': {
+    id: 'layer-sebaran-rumah-komersil',
+    name: 'Sebaran Rumah Komersil',
+    color: '#e67e22',
+    outlineColor: '#a95a17'
+  },
+  'layer-kawasan-lahan-terbangun': {
+    id: 'layer-kawasan-lahan-terbangun',
+    name: 'Kawasan Lahan Terbangun',
+    color: '#16a085',
+    outlineColor: '#0e6f5c'
+  },
+  'layer-kawasan-rawan-bencana': {
+    id: 'layer-kawasan-rawan-bencana',
+    name: 'Kawasan Rawan Bencana',
+    color: '#c0392b',
+    outlineColor: '#7e261d'
+  },
+  'layer-kawasan-rencana-pola-ruang': {
+    id: 'layer-kawasan-rencana-pola-ruang',
+    name: 'Kawasan Rencana Pola Ruang',
+    color: '#8e44ad',
+    outlineColor: '#5e2e73'
+  },
+  'layer-kemiringan-lereng': {
+    id: 'layer-kemiringan-lereng',
+    name: 'Kemiringan Lereng',
+    color: '#27ae60',
+    outlineColor: '#1c7a43'
+  }
+};
+
+export default function CommercialHousesPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+  const [isClient, setIsClient] = useState(false);
+  
+  // View state
+  const [currentView, setCurrentView] = useState<'table' | 'map'>('table');
+  
+  // Data state
+  const [commercialHouses, setCommercialHouses] = useState<CommercialHouse[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedKecamatan, setSelectedKecamatan] = useState('');
+  const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([]);
+  
+  // Dialog state
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingHouse, setEditingHouse] = useState<CommercialHouse | null>(null);
+  const [clickedFeatureGeometry, setClickedFeatureGeometry] = useState<any>(null);
+
+  // Map state
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapData, setMapData] = useState<MapData[]>([]);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
+  const [showBaseMap, setShowBaseMap] = useState(true);
+
+  useEffect(() => { setIsClient(true); }, []);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login?next=/dashboard/commercil-houses');
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchKecamatanOptions();
+      fetchCommercialHouses();
+      if (currentView === 'map') {
+        loadMapData();
+      }
+    }
+  }, [isAuthenticated, pagination.page, searchTerm, selectedKecamatan, currentView]);
+
+  // Load map data when switching to map view
+  useEffect(() => {
+    if (currentView === 'map' && isAuthenticated && !mapData.length) {
+      loadMapData();
+    }
+  }, [currentView, isAuthenticated, mapData.length]);
+
+  // Clean up map layers and sources
+  const cleanupMap = useCallback(() => {
+    if (!map.current) return;
+    
+    try {
+      // Remove all custom layers
+      const layersToRemove = [
+        'layer-peta-administrasi-fill',
+        'layer-peta-administrasi-outline',
+        'layer-peta-administrasi-highlighted',
+        'layer-peta-administrasi-highlighted-outline',
+        'layer-sebaran-rumah-komersil-fill',
+        'layer-sebaran-rumah-komersil-outline',
+        'layer-sebaran-rumah-komersil-highlighted',
+        'layer-sebaran-rumah-komersil-highlighted-outline',
+        'layer-kawasan-lahan-terbangun-fill',
+        'layer-kawasan-lahan-terbangun-outline',
+        'layer-kawasan-lahan-terbangun-highlighted',
+        'layer-kawasan-lahan-terbangun-highlighted-outline',
+        'layer-kawasan-rawan-bencana-fill',
+        'layer-kawasan-rawan-bencana-outline',
+        'layer-kawasan-rawan-bencana-highlighted',
+        'layer-kawasan-rawan-bencana-highlighted-outline',
+        'layer-kawasan-rencana-pola-ruang-fill',
+        'layer-kawasan-rencana-pola-ruang-outline',
+        'layer-kawasan-rencana-pola-ruang-highlighted',
+        'layer-kawasan-rencana-pola-ruang-highlighted-outline',
+        'layer-kemiringan-lereng-fill',
+        'layer-kemiringan-lereng-outline',
+        'layer-kemiringan-lereng-highlighted',
+        'layer-kemiringan-lereng-highlighted-outline',
+        // Label layers
+        'layer-peta-administrasi-labels-kecamatan',
+        'layer-peta-administrasi-labels-kelurahan',
+        'layer-sebaran-rumah-komersil-labels-commercial'
+      ];
+
+      layersToRemove.forEach(layerId => {
+        if (map.current!.getLayer(layerId)) {
+          map.current!.removeLayer(layerId);
+        }
+      });
+
+      // Remove all custom sources
+      const sourcesToRemove = [
+        'layer-peta-administrasi',
+        'layer-sebaran-rumah-komersil',
+        'layer-kawasan-lahan-terbangun',
+        'layer-kawasan-rawan-bencana',
+        'layer-kawasan-rencana-pola-ruang',
+        'layer-kemiringan-lereng',
+        'layer-peta-administrasi-labels',
+        'layer-sebaran-rumah-komersil-labels'
+      ];
+
+      sourcesToRemove.forEach(sourceId => {
+        if (map.current!.getSource(sourceId)) {
+          map.current!.removeSource(sourceId);
+        }
+      });
+
+      console.log('Map cleanup completed');
+    } catch (error) {
+      console.error('Error during map cleanup:', error);
+    }
+  }, []);
+
+  // Clean up map when switching away from map view
+  useEffect(() => {
+    if (currentView !== 'map' && map.current) {
+      cleanupMap();
+    }
+  }, [currentView, cleanupMap]);
+
+  // Initialize map
+  useEffect(() => {
+    if (currentView !== 'map' || map.current) return;
+
+    console.log('Initializing map...');
+    if (mapContainer.current) {
+      try {
+        map.current = new mapboxgl.Map({
+          container: mapContainer.current,
+          style: showBaseMap 
+            ? 'mapbox://styles/mapbox/streets-v12'
+            : 'mapbox://styles/mapbox/light-v11',
+          center: [107.4439, -6.5569], // Purwakarta center
+          zoom: 10,
+          attributionControl: false
+        });
+
+        map.current.on('load', () => {
+          setMapReady(true);
+          console.log('Map loaded successfully');
+        });
+
+        map.current.on('error', (_e: any) => {
+          // console.error('Map error:', e);
+          // setMapError('Map failed to load');
+        });
+
+        // Add navigation controls
+        map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        console.log('Map initialized successfully');
+      } catch (error) {
+        console.error('Error initializing map:', error);
+        setMapError('Failed to initialize map');
+      }
+    }
+
+    return () => {
+      if (map.current) {
+        console.log('Cleaning up map...');
+        cleanupMap();
+        map.current.remove();
+        map.current = null;
+        setMapReady(false);
+      }
+    };
+  }, [currentView, showBaseMap, cleanupMap]);
+
+
+  const fetchKecamatanOptions = async () => {
+    try {
+      const response = await fetch('/api/maps/kecamatan');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setKecamatanOptions(data.kecamatan || []);
+      } else {
+        console.error('Error fetching kecamatan options:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching kecamatan options:', error);
+    }
+  };
+
+  const fetchCommercialHouses = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+        ...(searchTerm && { search: searchTerm }),
+        ...(selectedKecamatan && { kecamatan: selectedKecamatan }),
+      });
+
+      const response = await fetch(`/api/commercial-houses?${params}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setCommercialHouses(data.data);
+        setPagination(data.pagination);
+      } else {
+        console.error('Error fetching commercial houses:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching commercial houses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this commercial house?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/commercial-houses/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchCommercialHouses(); // Refresh the list
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting commercial house:', error);
+      alert('Failed to delete commercial house');
+    }
+  };
+
+  const handleEdit = (house: CommercialHouse) => {
+    setEditingHouse(house);
+    setIsFormOpen(true);
+  };
+
+  const handleFormSubmit = () => {
+    setIsFormOpen(false);
+    setEditingHouse(null);
+    setClickedFeatureGeometry(null); // Clear geometry
+    fetchCommercialHouses(); // Refresh the list
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page
+    fetchCommercialHouses();
+  };
+
+  // Map functions
+  const loadMapData = async () => {
+    try {
+      setMapLoading(true);
+      console.log('Loading map data from API...');
+      const response = await fetch('/api/maps', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to load map data');
+      const data = await response.json();
+      console.log('Map data loaded:', data);
+      setMapData(data);
+      
+      // Auto-select all layers
+      const allLayerIds = data.map((map: MapData) => {
+        return `layer-${map.name.toLowerCase().replace(/\s+/g, '-')}`;
+      });
+      console.log('Auto-selected layers:', allLayerIds);
+      setSelectedLayers(allLayerIds);
+    } catch (err: any) {
+      console.error('Error loading map data:', err);
+      setMapError(err?.message || 'Failed to load map data');
+    } finally {
+      setMapLoading(false);
+    }
+  };
+
+  // Helper to get the center of a polygon
+  const getPolygonCenter = useCallback((coordinates: any) => {
+    if (!coordinates || coordinates.length === 0) return null;
+
+    let ring = null;
+    
+    if (coordinates[0] && Array.isArray(coordinates[0])) {
+      if (coordinates[0][0] && Array.isArray(coordinates[0][0]) && coordinates[0][0].length > 0) {
+        if (Array.isArray(coordinates[0][0][0]) && coordinates[0][0][0].length >= 2) {
+          ring = coordinates[0][0];
+        } else {
+          ring = coordinates[0];
+        }
+      } else {
+        ring = coordinates[0];
+      }
+    }
+    
+    if (!ring || ring.length < 3) return null;
+
+    // Calculate centroid using shoelace formula
+    let area = 0;
+    let centroidX = 0;
+    let centroidY = 0;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      const coord1 = ring[i];
+      const coord2 = ring[i + 1];
+      
+      const x1 = coord1[0];
+      const y1 = coord1[1];
+      const x2 = coord2[0];
+      const y2 = coord2[1];
+      
+      if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
+          !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+        continue;
+      }
+
+      const cross = x1 * y2 - x2 * y1;
+      area += cross;
+      centroidX += (x1 + x2) * cross;
+      centroidY += (y1 + y2) * cross;
+    }
+
+    if (Math.abs(area) > 1e-10) {
+      area /= 2;
+      centroidX /= (6 * area);
+      centroidY /= (6 * area);
+      return [centroidX, centroidY];
+    }
+
+    // Fallback to bounding box center
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let validCoords = 0;
+
+    for (const coord of ring) {
+      if (Array.isArray(coord) && coord.length >= 2) {
+        const x = coord[0];
+        const y = coord[1];
+        
+        if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+          validCoords++;
+        }
+      }
+    }
+
+    if (validCoords > 0 && isFinite(minX) && isFinite(maxX) && isFinite(minY) && isFinite(maxY)) {
+      const centerX = minX + (maxX - minX) / 2;
+      const centerY = minY + (maxY - minY) / 2;
+      
+      if (!isNaN(centerX) && !isNaN(centerY) && isFinite(centerX) && isFinite(centerY)) {
+        return [centerX, centerY];
+      }
+    }
+
+    return null;
+  }, []);
+
+  // Helper to calculate polygon area in square meters
+  const calculatePolygonArea = useCallback((coordinates: any): number | null => {
+    if (!coordinates || coordinates.length === 0) return null;
+
+    try {
+      const ring = coordinates[0];
+      if (!ring || ring.length < 3) return null;
+
+      let area = 0;
+      
+      for (let i = 0; i < ring.length - 1; i++) {
+        const coord1 = ring[i];
+        const coord2 = ring[i + 1];
+        
+        if (Array.isArray(coord1) && Array.isArray(coord2) && 
+            coord1.length >= 2 && coord2.length >= 2) {
+          const x1 = coord1[0];
+          const y1 = coord1[1];
+          const x2 = coord2[0];
+          const y2 = coord2[1];
+          
+          if (!isNaN(x1) && !isNaN(y1) && !isNaN(x2) && !isNaN(y2) && 
+              isFinite(x1) && isFinite(y1) && isFinite(x2) && isFinite(y2)) {
+            const cross = x1 * y2 - x2 * y1;
+            area += cross;
+          }
+        }
+      }
+
+      // Close the polygon
+      if (ring.length > 0) {
+        const firstCoord = ring[0];
+        const lastCoord = ring[ring.length - 1];
+        
+        if (Array.isArray(firstCoord) && Array.isArray(lastCoord) && 
+            firstCoord.length >= 2 && lastCoord.length >= 2) {
+          const x1 = lastCoord[0];
+          const y1 = lastCoord[1];
+          const x2 = firstCoord[0];
+          const y2 = firstCoord[1];
+          
+          if (!isNaN(x1) && !isNaN(y1) && !isNaN(x2) && !isNaN(y2) && 
+              isFinite(x1) && isFinite(y1) && isFinite(x2) && isFinite(y2)) {
+            const cross = x1 * y2 - x2 * y1;
+            area += cross;
+          }
+        }
+      }
+
+      const areaInDegrees = Math.abs(area) / 2;
+      const metersPerDegree = 111000;
+      const areaInSquareMeters = areaInDegrees * metersPerDegree * metersPerDegree;
+      
+      return areaInSquareMeters;
+    } catch (error) {
+      console.error('Error calculating polygon area:', error);
+      return null;
+    }
+  }, []);
+
+  // Add labels for commercial building features
+  const addCommercialBuildingLabels = useCallback((layerId: string, data: any) => {
+    if (!map.current) return;
+
+    const labelData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: data.features.map((feature: any) => {
+        const center = getPolygonCenter(feature.geometry.coordinates);
+        if (center) {
+          const labelText = feature.properties.namaKawasanPerumahan || feature.properties.nama_kawasan || 'Unnamed';
+          const area = calculatePolygonArea(feature.geometry.coordinates);
+          const areaText = area ? `${Math.round(area)} m²` : '';
+          const combinedLabel = areaText ? `${labelText}\n${areaText}` : labelText;
+          
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: center
+            },
+            properties: {
+              combinedLabel: combinedLabel,
+              featureId: feature.properties.feature_id || feature.properties.OBJECTID || feature.properties.Id
+            }
+          } as GeoJSON.Feature;
+        }
+        return null;
+      }).filter(Boolean) as GeoJSON.Feature[]
+    };
+
+    const labelSourceId = `${layerId}-labels`;
+    if (!map.current.getSource(labelSourceId)) {
+      map.current.addSource(labelSourceId, {
+        type: 'geojson',
+        data: labelData
+      });
+    }
+
+    if (!map.current.getLayer(`${layerId}-labels-commercial`)) {
+      map.current.addLayer({
+        id: `${layerId}-labels-commercial`,
+        type: 'symbol',
+        source: labelSourceId,
+        filter: ['has', 'combinedLabel'],
+        layout: {
+          'text-field': ['get', 'combinedLabel'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': 11,
+          'text-anchor': 'center',
+          'text-allow-overlap': true,
+          'text-ignore-placement': true
+        },
+        paint: {
+          'text-color': '#8B4513',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        }
+      });
+    }
+  }, [getPolygonCenter, calculatePolygonArea]);
+
+  // Add labels for administrative features
+  const addAdministrativeLabels = useCallback((layerId: string, data: any) => {
+    if (!map.current) return;
+
+    const labelData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: data.features.map((feature: any) => {
+        const center = getPolygonCenter(feature.geometry.coordinates);
+        if (center) {
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: center
+            },
+            properties: {
+              kecamatan: feature.properties.WADMKC || '',
+              kelurahan: feature.properties.WADMKD || '',
+              featureId: feature.properties.OBJECTID
+            }
+          } as GeoJSON.Feature;
+        }
+        return null;
+      }).filter(Boolean) as GeoJSON.Feature[]
+    };
+
+    const labelSourceId = `${layerId}-labels`;
+    if (!map.current.getSource(labelSourceId)) {
+      map.current.addSource(labelSourceId, {
+        type: 'geojson',
+        data: labelData
+      });
+    }
+
+    // Add Kecamatan labels
+    if (!map.current.getLayer(`${layerId}-labels-kecamatan`)) {
+      map.current.addLayer({
+        id: `${layerId}-labels-kecamatan`,
+        type: 'symbol',
+        source: labelSourceId,
+        filter: ['has', 'kecamatan'],
+        layout: {
+          'text-field': ['get', 'kecamatan'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': 12,
+          'text-anchor': 'center'
+        },
+        paint: {
+          'text-color': '#1a1a1a',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        }
+      });
+    }
+
+    // Add Kelurahan labels
+    if (!map.current.getLayer(`${layerId}-labels-kelurahan`)) {
+      map.current.addLayer({
+        id: `${layerId}-labels-kelurahan`,
+        type: 'symbol',
+        source: labelSourceId,
+        filter: ['has', 'kelurahan'],
+        layout: {
+          'text-field': ['get', 'kelurahan'],
+          'text-font': ['Open Sans Regular'],
+          'text-size': 10,
+          'text-anchor': 'center',
+          'text-offset': [0, -0.002]
+        },
+        paint: {
+          'text-color': '#666666',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1
+        }
+      });
+    }
+  }, [getPolygonCenter]);
+
+  // Load a single layer
+  const loadLayer = useCallback((layerId: string, geojsonData: any, config: LayerConfig, order: number) => {
+    if (!map.current) {
+      console.log('Map not ready, skipping layer:', layerId);
+      return;
+    }
+
+    try {
+      console.log(`Loading layer: ${layerId} with order: ${order}`);
+      console.log('GeoJSON data:', geojsonData);
+      console.log('Config:', config);
+      
+      // Add source
+      if (map.current.getSource(layerId)) {
+        console.log(`Updating existing source: ${layerId}`);
+        const source = map.current.getSource(layerId) as mapboxgl.GeoJSONSource;
+        if (source.setData) {
+          source.setData(geojsonData);
+        }
+      } else {
+        console.log(`Adding new source: ${layerId}`);
+        map.current.addSource(layerId, {
+          type: 'geojson',
+          data: geojsonData
+        });
+      }
+
+      // Ensure interactive identifier exists for hover/click filters
+      if (geojsonData && Array.isArray(geojsonData.features)) {
+        geojsonData.features = geojsonData.features.map((f: any, idx: number) => {
+          if (!f.properties) f.properties = {};
+          if (typeof f.properties.OBJECTID === 'undefined' || f.properties.OBJECTID === null) {
+            f.properties.OBJECTID = idx + 1;
+          }
+          return f;
+        });
+      }
+
+      // Add fill layer
+      if (!map.current.getLayer(`${layerId}-fill`)) {
+        map.current.addLayer({
+          id: `${layerId}-fill`,
+          type: 'fill',
+          source: layerId,
+          paint: {
+            'fill-color': config.color,
+            'fill-opacity': 0.3
+          }
+        });
+      }
+
+      // Add outline layer
+      if (!map.current.getLayer(`${layerId}-outline`)) {
+        map.current.addLayer({
+          id: `${layerId}-outline`,
+          type: 'line',
+          source: layerId,
+          paint: {
+            'line-color': config.outlineColor,
+            'line-width': 1
+          }
+        });
+      }
+
+      // Add highlighted layer (initially hidden)
+      if (!map.current.getLayer(`${layerId}-highlighted`)) {
+        map.current.addLayer({
+          id: `${layerId}-highlighted`,
+          type: 'fill',
+          source: layerId,
+          paint: {
+            'fill-color': config.color,
+            'fill-opacity': 0.8
+          },
+          filter: ['==', 'OBJECTID', ''] // Initially no features shown
+        });
+      }
+
+      // Add highlighted outline layer
+      if (!map.current.getLayer(`${layerId}-highlighted-outline`)) {
+        map.current.addLayer({
+          id: `${layerId}-highlighted-outline`,
+          type: 'line',
+          source: layerId,
+          paint: {
+            'line-color': config.outlineColor,
+            'line-width': 3
+          },
+          filter: ['==', 'OBJECTID', ''] // Initially no features shown
+        });
+      }
+
+      // Add labels for commercial buildings layer
+      if (layerId === 'layer-sebaran-rumah-komersil') {
+        addCommercialBuildingLabels(layerId, geojsonData);
+      }
+
+      // Add labels for administrative layer
+      if (layerId === 'layer-administrasi') {
+        addAdministrativeLabels(layerId, geojsonData);
+      }
+
+      // Set up click events
+      map.current.on('click', `${layerId}-fill`, (e) => {
+        if (e.features && e.features.length > 0) {
+          const feature = e.features[0];
+          const featureId = feature.properties?.OBJECTID;
+          
+          if (featureId) {
+            // Highlight the clicked feature
+            map.current!.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
+            map.current!.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
+            
+            console.log('Feature clicked:', feature.properties);
+            
+            // If it's the sebaran rumah komersil layer, open the form with geometry
+            if (layerId === 'layer-sebaran-rumah-komersil') {
+              setClickedFeatureGeometry(feature.geometry);
+              setEditingHouse(null); // Create new house
+              setIsFormOpen(true);
+            }
+          }
+        }
+      });
+
+      // Add hover effects
+      map.current.on('mouseenter', `${layerId}-fill`, () => {
+        map.current!.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.current.on('mouseleave', `${layerId}-fill`, () => {
+        map.current!.getCanvas().style.cursor = '';
+      });
+
+      console.log(`Layer ${layerId} loaded successfully`);
+    } catch (error) {
+      console.error(`Error loading layer ${layerId}:`, error);
+    }
+  }, [addCommercialBuildingLabels, addAdministrativeLabels]);
+
+  const toggleBaseMap = () => {
+    setShowBaseMap(!showBaseMap);
+  };
+
+  // Load layers when map is ready and data is available
+  useEffect(() => {
+    if (currentView !== 'map' || !mapReady || !map.current || mapData.length === 0) return;
+
+    console.log('Loading layers for commercial houses map...');
+    console.log('Map data:', mapData);
+    console.log('Selected layers:', selectedLayers);
+
+    // Sort map data by sortOrder
+    const sortedMapData = [...mapData].sort((a, b) => a.sortOrder - b.sortOrder);
+    
+    // Load each layer in order
+    sortedMapData.forEach((mapItem, index) => {
+      const layerId = `layer-${mapItem.name.toLowerCase().replace(/\s+/g, '-')}`;
+      const config = layerConfigs[layerId];
+      
+      if (config && mapItem.geojson) {
+        console.log(`Loading layer: ${layerId} (${mapItem.name})`);
+        loadLayer(layerId, mapItem.geojson, config, index + 1);
+      } else {
+        console.log(`No config found for layer: ${layerId} (${mapItem.name})`);
+      }
+    });
+  }, [currentView, mapReady, mapData, selectedLayers, loadLayer]);
+
+  if (!isClient || isLoading) {
+    return (
+      <div className="flex h-[calc(100vh-56px)] items-center justify-center">
+        <div className="text-center text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-[calc(100vh-56px)] items-center justify-center">
+        <div className="text-center text-gray-600">Redirecting to login...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen flex flex-col">
+      {/* Header */}
+      <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-semibold flex items-center">
+            <Building className="mr-2 h-5 w-5" />
+            Commercial Houses
+          </h1>
+          <div className="text-sm text-gray-500">
+            {currentView === 'table' ? `${pagination.total} total` : `${mapData.length} layers loaded`}
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          {/* View Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <Button
+              variant={currentView === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('table')}
+              className="flex items-center"
+            >
+              <TableIcon className="mr-2 h-4 w-4" />
+              Table
+            </Button>
+            <Button
+              variant={currentView === 'map' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('map')}
+              className="flex items-center"
+            >
+              <Layers className="mr-2 h-4 w-4" />
+              Map
+            </Button>
+          </div>
+
+          {/* Map Controls - only show in map view */}
+          {currentView === 'map' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleBaseMap}
+              className="flex items-center"
+            >
+              <Layers className="mr-2 h-4 w-4" />
+              {showBaseMap ? 'Hide' : 'Show'} Base Map
+            </Button>
+          )}
+          
+          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEditingHouse(null)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Commercial House
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingHouse ? 'Edit Commercial House' : 'Add New Commercial House'}
+                </DialogTitle>
+              </DialogHeader>
+              <CommercialHouseForm
+                house={editingHouse}
+                geometry={clickedFeatureGeometry}
+                onSuccess={handleFormSubmit}
+                onCancel={() => {
+                  setIsFormOpen(false);
+                  setClickedFeatureGeometry(null);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {currentView === 'table' ? (
+          <div className="h-full overflow-y-auto p-6">
+            {/* Search and Filters */}
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <form onSubmit={handleSearch} className="flex gap-4">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Search by address, developer, or permit number..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="w-48">
+                    <select
+                      value={selectedKecamatan}
+                      onChange={(e) => setSelectedKecamatan(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Kecamatan</option>
+                      {kecamatanOptions.map((kecamatan) => (
+                        <option key={kecamatan} value={kecamatan}>
+                          {kecamatan}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button type="submit">
+                    <Search className="mr-2 h-4 w-4" />
+                    Search
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Data Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Commercial Houses ({pagination.total} total)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : commercialHouses.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No commercial houses found
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Address</TableHead>
+                          <TableHead>Kawasan</TableHead>
+                          <TableHead>Kecamatan</TableHead>
+                          <TableHead>Developer</TableHead>
+                          <TableHead>Permit No.</TableHead>
+                          <TableHead>Photos</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead className="w-[50px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {commercialHouses.map((house) => (
+                          <TableRow key={house.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-gray-400" />
+                                <span className="truncate max-w-[200px]" title={house.alamat}>
+                                  {house.alamat || 'N/A'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="truncate max-w-[150px]" title={house.kawasanPerumahan}>
+                                {house.kawasanPerumahan || 'N/A'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{house.kecamatan || 'N/A'}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Building className="h-4 w-4 text-gray-400" />
+                                <span className="truncate max-w-[150px]" title={house.namaPengembang}>
+                                  {house.namaPengembang || 'N/A'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-mono text-sm">
+                                {house.noIzin || 'N/A'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">
+                                {house.foto.length} photo{house.foto.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <Calendar className="h-4 w-4" />
+                                {new Date(house.createdAt).toLocaleDateString()}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEdit(house)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDelete(house.id)}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+              <div className="flex justify-center items-center gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                  disabled={pagination.page === 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-gray-600">
+                  Page {pagination.page} of {pagination.pages}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                  disabled={pagination.page === pagination.pages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Map View */
+          <div className="h-full relative">
+            <div ref={mapContainer} className="w-full h-full" />
+            
+            {/* Map Controls */}
+            <div className="absolute top-4 left-4 space-y-2">
+              <Card className="p-3 bg-white/90 backdrop-blur-sm">
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700">Layers</div>
+                  {mapData.map((mapItem) => {
+                    const layerId = `layer-${mapItem.name.toLowerCase().replace(/\s+/g, '-')}`;
+                    const config = layerConfigs[layerId];
+                    return (
+                      <div key={mapItem.id} className="flex items-center space-x-2">
+                        <div 
+                          className="w-4 h-4 rounded border"
+                          style={{ backgroundColor: config?.color || '#ccc' }}
+                        />
+                        <span className="text-xs text-gray-600">{mapItem.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+
+            {/* Loading indicator */}
+            {mapLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-600">Loading map data...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Error indicator */}
+            {mapError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                <div className="text-center">
+                  <p className="text-red-600 mb-4">{mapError}</p>
+                  <Button onClick={loadMapData}>Retry</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

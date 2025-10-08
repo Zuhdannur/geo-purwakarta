@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,21 +27,21 @@ export async function GET() {
     if (!geoJsonData) {
       // If no data in Redis, return the static file data
       // This ensures backward compatibility
-      const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/new data/rumah_komersil.geojson`);
-      
-      if (!response.ok) {
+      try {
+        const filePath = join(process.cwd(), 'public', 'new data', 'rumah_komersil.geojson');
+        const fileContent = await readFile(filePath, 'utf-8');
+        const staticData = JSON.parse(fileContent);
+        
+        // Store it in Redis for future use
+        await redis.set('rumah_komersil_data', JSON.stringify(staticData));
+        
+        return NextResponse.json(staticData);
+      } catch (fileError) {
         return NextResponse.json(
-          { error: 'Data not found' },
+          { error: 'Data file not found' },
           { status: 404 }
         );
       }
-
-      const staticData = await response.json();
-      
-      // Store it in Redis for future use
-      await redis.set('rumah_komersil_data', JSON.stringify(staticData));
-      
-      return NextResponse.json(staticData);
     }
     
     // Parse the JSON string from Redis

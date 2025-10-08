@@ -21,13 +21,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'geojson is required' }, { status: 400 })
     }
 
+    // Get the current max sortOrder and increment it
+    const maxSortOrder = await prisma.maps.aggregate({
+      _max: { sortOrder: true }
+    })
+    const nextSortOrder = (maxSortOrder._max.sortOrder || 0) + 1
+
     const created = await prisma.maps.create({
-      data: { name, geojson, sortOrder: Date.now() },
+      data: { name, geojson, sortOrder: nextSortOrder },
       select: { id: true, name: true, createdAt: true, updatedAt: true },
     })
     return NextResponse.json(created, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: 'failed to create map' }, { status: 500 })
+  } catch (error) {
+    console.error('Failed to create map:', error)
+    return NextResponse.json({ 
+      error: 'failed to create map', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 })
   }
 }
 

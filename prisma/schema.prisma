@@ -9,7 +9,8 @@ datasource db {
 
 model User {
   id           Int       @id @default(autoincrement())
-  email        String    @unique
+  username     String    @unique
+  email        String?   @unique
   name         String?
   passwordHash String
   role         UserRole  @default(USER)
@@ -32,4 +33,23 @@ model Maps {
   updatedAt DateTime @updatedAt
 }
 
+model CommercialHouse {
+  id               String   @id @default(uuid())
+  idSrk            String?  @map("id_srk")
+  kawasanPerumahan String?  @map("kawasan_perumahan")
+  alamat           String?
+  kecamatan        String?
+  kelurahanDesa    String?  @map("kelurahan_desa")
+  namaPengembang   String?  @map("nama_pengembang")
+  noIzin           String?  @map("no_izin")
+  penutupLahan     String?  @map("penutup_lahan")
+  rawanBencana     String?  @map("rawan_bencana")
+  rencanaPolaRuang String?  @map("rencana_pola_ruang")
+  koordinat        String?  // Store as JSON string or coordinate pair
+  geometry         Json?    // Store GeoJSON geometry to connect with map features
+  foto             String[] // Array of photo URLs/paths
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
+  @@map("commercial_houses")
+}

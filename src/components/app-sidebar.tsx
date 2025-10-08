@@ -8,6 +8,7 @@ import {
   IconMap,
   IconSettings,
   IconUsers,
+  IconBuilding,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -23,13 +24,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/hooks/useAuth"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Home",
@@ -41,28 +38,33 @@ const data = {
       url: "/dashboard",
       icon: IconLayoutGrid,
       items: [
-        { title: "Users", url: "/dashboard/users", icon: IconUsers },
-        { title: "Maps", url: "/dashboard/maps", icon: IconMap },
+        { title: "Kelola Pengguna", url: "/dashboard/users", icon: IconUsers },
+        { title: "Kelola Peta", url: "/dashboard/maps", icon: IconMap }
       ],
     },
-    {
-      title: "Maps",
-      url: "/dashboard/maps",
-      icon: IconMap,
-    },
+    { title: "Sebaran Rumah Komersil", url: "/dashboard/commercil-houses", icon: IconBuilding },
   ],
   navClouds: [],
   navSecondary: [
-    {
-      title: "Settings",
-      url: "/dashboard/settings",
-      icon: IconSettings,
-    },
+   
   ],
   documents: [],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user, logout } = useAuth()
+
+  // Create user object for NavUser component
+  const userData = user ? {
+    name: user.name || user.username,
+    email: user.email || user.username,
+    avatar: "/avatars/default.jpg",
+  } : {
+    name: "Guest",
+    email: "guest@example.com",
+    avatar: "/avatars/default.jpg",
+  }
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -82,11 +84,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} onLogout={logout} />
       </SidebarFooter>
     </Sidebar>
   )
