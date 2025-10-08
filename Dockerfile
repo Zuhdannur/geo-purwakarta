@@ -25,6 +25,9 @@ COPY . .
 # Generate Prisma client before building
 RUN npx prisma generate
 
+# Compile the seed script to JavaScript
+RUN npx tsc prisma/seed.ts --outDir prisma --target es2022 --module commonjs --moduleResolution node --esModuleInterop --resolveJsonModule --skipLibCheck
+
 RUN npm run build
 
 # Production image, copy all the files and run next
@@ -49,13 +52,17 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema, migrations, and client for runtime
+# Copy Prisma schema, migrations, seed, and client for runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Create node_modules directory and copy Prisma client
+# Create node_modules directory and copy necessary packages for Prisma and seeding
 RUN mkdir -p node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
+# Copy package.json for Prisma seed command
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 USER nextjs
 
