@@ -56,12 +56,6 @@ export function Combobox({
 
   const selectedOption = options.find((option) => option.value === value)
 
-  const handleSelect = (currentValue: string) => {
-    const newValue = currentValue === value ? "" : currentValue
-    onValueChange?.(newValue)
-    setOpen(false)
-  }
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -90,11 +84,21 @@ export function Combobox({
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {options.map((option, index) => (
                 <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={() => handleSelect(option.value)}
+                  key={`${option.value}-${index}`}
+                  value={`${option.label}__${index}`}
+                  keywords={[option.label, option.value]}
+                  onSelect={(selected) => {
+                    // Extract index from the selected value
+                    const parts = selected.split('__')
+                    const idx = parseInt(parts[parts.length - 1])
+                    if (!isNaN(idx) && options[idx]) {
+                      const newValue = options[idx].value === value ? "" : options[idx].value
+                      onValueChange?.(newValue)
+                      setOpen(false)
+                    }
+                  }}
                   disabled={option.disabled}
                 >
                   {option.label}
@@ -148,13 +152,6 @@ export function MultiCombobox({
 
   const selectedOptions = options.filter((option) => values.includes(option.value))
 
-  const handleSelect = (currentValue: string) => {
-    const newValues = values.includes(currentValue)
-      ? values.filter((value) => value !== currentValue)
-      : [...values, currentValue]
-    onValuesChange?.(newValues)
-  }
-
   const getDisplayText = () => {
     if (selectedOptions.length === 0) return placeholder
     if (selectedOptions.length <= maxDisplayed) {
@@ -191,11 +188,22 @@ export function MultiCombobox({
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {options.map((option, index) => (
                 <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={() => handleSelect(option.value)}
+                  key={`${option.value}-${index}`}
+                  value={`${option.label}__${index}`}
+                  keywords={[option.label, option.value]}
+                  onSelect={(selected) => {
+                    // Extract index from the selected value
+                    const parts = selected.split('__')
+                    const idx = parseInt(parts[parts.length - 1])
+                    if (!isNaN(idx) && options[idx]) {
+                      const newValues = values.includes(options[idx].value)
+                        ? values.filter((value) => value !== options[idx].value)
+                        : [...values, options[idx].value]
+                      onValuesChange?.(newValues)
+                    }
+                  }}
                   disabled={option.disabled}
                 >
                   {option.label}

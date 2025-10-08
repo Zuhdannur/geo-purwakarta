@@ -100,6 +100,12 @@ const layerConfigs: { [key: string]: LayerConfig } = {
     color: '#e67e22',
     outlineColor: '#a95a17'
   },
+  'layer-registered-houses': {
+    id: 'layer-registered-houses',
+    name: 'Registered Commercial Houses',
+    color: '#2ecc71', // Brighter green
+    outlineColor: '#27ae60' // Medium green for outline
+  },
   'layer-kawasan-lahan-terbangun': {
     id: 'layer-kawasan-lahan-terbangun',
     name: 'Kawasan Lahan Terbangun',
@@ -121,8 +127,8 @@ const layerConfigs: { [key: string]: LayerConfig } = {
   'layer-kemiringan-lereng': {
     id: 'layer-kemiringan-lereng',
     name: 'Kemiringan Lereng',
-    color: '#27ae60',
-    outlineColor: '#1c7a43'
+    color: '#f39c12',
+    outlineColor: '#d68910'
   }
 };
 
@@ -161,6 +167,8 @@ export default function CommercialHousesPage() {
   const [mapError, setMapError] = useState<string | null>(null);
   const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
   const [showBaseMap, setShowBaseMap] = useState(true);
+  const [registeredGeometries, setRegisteredGeometries] = useState<Set<string>>(new Set());
+  const [registeredHousesGeoJSON, setRegisteredHousesGeoJSON] = useState<any>(null);
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -202,6 +210,10 @@ export default function CommercialHousesPage() {
         'layer-sebaran-rumah-komersil-outline',
         'layer-sebaran-rumah-komersil-highlighted',
         'layer-sebaran-rumah-komersil-highlighted-outline',
+        'layer-registered-houses-fill',
+        'layer-registered-houses-outline',
+        'layer-registered-houses-highlighted',
+        'layer-registered-houses-highlighted-outline',
         'layer-kawasan-lahan-terbangun-fill',
         'layer-kawasan-lahan-terbangun-outline',
         'layer-kawasan-lahan-terbangun-highlighted',
@@ -221,7 +233,8 @@ export default function CommercialHousesPage() {
         // Label layers
         'layer-peta-administrasi-labels-kecamatan',
         'layer-peta-administrasi-labels-kelurahan',
-        'layer-sebaran-rumah-komersil-labels-commercial'
+        'layer-sebaran-rumah-komersil-labels-commercial',
+        'layer-registered-houses-labels-commercial'
       ];
 
       layersToRemove.forEach(layerId => {
@@ -234,12 +247,14 @@ export default function CommercialHousesPage() {
       const sourcesToRemove = [
         'layer-peta-administrasi',
         'layer-sebaran-rumah-komersil',
+        'layer-registered-houses',
         'layer-kawasan-lahan-terbangun',
         'layer-kawasan-rawan-bencana',
         'layer-kawasan-rencana-pola-ruang',
         'layer-kemiringan-lereng',
         'layer-peta-administrasi-labels',
-        'layer-sebaran-rumah-komersil-labels'
+        'layer-sebaran-rumah-komersil-labels',
+        'layer-registered-houses-labels'
       ];
 
       sourcesToRemove.forEach(sourceId => {
@@ -377,11 +392,18 @@ export default function CommercialHousesPage() {
     setIsFormOpen(true);
   };
 
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
     setIsFormOpen(false);
     setEditingHouse(null);
     setClickedFeatureGeometry(null); // Clear geometry
     fetchCommercialHouses(); // Refresh the list
+    
+    // Reload registered geometries and update the green layer if in map view
+    if (currentView === 'map') {
+      console.log('Form submitted in map view, updating registered houses layer...');
+      await loadRegisteredGeometries(); // This will trigger the useEffect to reload the green layer
+      console.log('✅ Registered houses layer will be updated');
+    }
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -395,6 +417,11 @@ export default function CommercialHousesPage() {
     try {
       setMapLoading(true);
       console.log('Loading map data from API...');
+      
+      // Load registered geometries FIRST before loading map data
+      console.log('Loading registered geometries first...');
+      await loadRegisteredGeometries();
+      
       const response = await fetch('/api/maps', { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to load map data');
       const data = await response.json();
@@ -414,6 +441,91 @@ export default function CommercialHousesPage() {
       setMapLoading(false);
     }
   };
+
+  // Load registered commercial house geometries and create GeoJSON layer
+  const loadRegisteredGeometries = async (): Promise<Set<string>> => {
+    try {
+      const response = await fetch('/api/commercial-houses?limit=10000');
+      if (!response.ok) throw new Error('Failed to load commercial houses');
+      const data = await response.json();
+      
+      console.log('📊 Commercial houses from DB:', data.data.length);
+      
+      const geometrySet = new Set<string>();
+      const features: any[] = [];
+      
+      data.data.forEach((house: CommercialHouse, index: number) => {
+        if (house.geometry) {
+          // Normalize geometry by keeping only type and coordinates
+          const normalizedGeometry = {
+            type: house.geometry.type,
+            coordinates: house.geometry.coordinates
+          };
+          const geometryString = JSON.stringify(normalizedGeometry);
+          geometrySet.add(geometryString);
+          
+          // Create GeoJSON feature
+          features.push({
+            type: 'Feature',
+            geometry: house.geometry,
+            properties: {
+              id: house.id,
+              kawasanPerumahan: house.kawasanPerumahan,
+              alamat: house.alamat,
+              kecamatan: house.kecamatan,
+              kelurahanDesa: house.kelurahanDesa,
+              namaPengembang: house.namaPengembang,
+              isRegistered: true
+            }
+          });
+          
+          // Log details of first few
+          if (index < 3) {
+            console.log(`DB House ${index}:`, {
+              id: house.id,
+              kawasan: house.kawasanPerumahan,
+              hasGeometry: !!house.geometry,
+              geometryType: house.geometry?.type
+            });
+          }
+        }
+      });
+      
+      // Create GeoJSON FeatureCollection
+      const geoJSON = {
+        type: 'FeatureCollection',
+        features: features
+      };
+      
+      console.log('✅ Created GeoJSON with', features.length, 'registered houses');
+      setRegisteredHousesGeoJSON(geoJSON);
+      setRegisteredGeometries(geometrySet);
+      return geometrySet;
+    } catch (err: any) {
+      console.error('Error loading registered geometries:', err);
+      return new Set<string>();
+    }
+  };
+
+  // Check if a geometry is already registered
+  const checkGeometryRegistered = useCallback(async (geometry: any): Promise<CommercialHouse | null> => {
+    try {
+      const response = await fetch('/api/commercial-houses/by-geometry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ geometry })
+      });
+      
+      if (response.ok) {
+        const house = await response.json();
+        return house;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error checking geometry registration:', error);
+      return null;
+    }
+  }, []);
 
   // Helper to get the center of a polygon
   const getPolygonCenter = useCallback((coordinates: any) => {
@@ -567,10 +679,9 @@ export default function CommercialHousesPage() {
       features: data.features.map((feature: any) => {
         const center = getPolygonCenter(feature.geometry.coordinates);
         if (center) {
-          const labelText = feature.properties.namaKawasanPerumahan || feature.properties.nama_kawasan || 'Unnamed';
           const area = calculatePolygonArea(feature.geometry.coordinates);
           const areaText = area ? `${Math.round(area)} m²` : '';
-          const combinedLabel = areaText ? `${labelText}\n${areaText}` : labelText;
+          const combinedLabel = areaText ? `${areaText}` : '';
           
           return {
             type: 'Feature',
@@ -737,26 +848,32 @@ export default function CommercialHousesPage() {
 
       // Add fill layer
       if (!map.current.getLayer(`${layerId}-fill`)) {
+        // Use higher opacity for registered houses to make them stand out
+        const fillOpacity = layerId === 'layer-registered-houses' ? 0.6 : 0.3;
+        
         map.current.addLayer({
           id: `${layerId}-fill`,
           type: 'fill',
           source: layerId,
           paint: {
             'fill-color': config.color,
-            'fill-opacity': 0.3
+            'fill-opacity': fillOpacity
           }
         });
       }
 
       // Add outline layer
       if (!map.current.getLayer(`${layerId}-outline`)) {
+        // Use thicker outline for registered houses
+        const lineWidth = layerId === 'layer-registered-houses' ? 2 : 1;
+        
         map.current.addLayer({
           id: `${layerId}-outline`,
           type: 'line',
           source: layerId,
           paint: {
             'line-color': config.outlineColor,
-            'line-width': 1
+            'line-width': lineWidth
           }
         });
       }
@@ -790,52 +907,95 @@ export default function CommercialHousesPage() {
       }
 
       // Add labels for commercial buildings layer
-      if (layerId === 'layer-sebaran-rumah-komersil') {
+      if (layerId === 'layer-sebaran-rumah-komersil' || layerId === 'layer-registered-houses') {
         addCommercialBuildingLabels(layerId, geojsonData);
       }
 
       // Add labels for administrative layer
-      if (layerId === 'layer-administrasi') {
+      if (layerId === 'layer-peta-administrasi') {
         addAdministrativeLabels(layerId, geojsonData);
       }
 
-      // Set up click events
-      map.current.on('click', `${layerId}-fill`, (e) => {
-        if (e.features && e.features.length > 0) {
-          const feature = e.features[0];
-          const featureId = feature.properties?.OBJECTID;
-          
-          if (featureId) {
-            // Highlight the clicked feature
-            map.current!.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
-            map.current!.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
+      // Set up click events (skip for administrative layer)
+      if (layerId !== 'layer-peta-administrasi') {
+        map.current.on('click', `${layerId}-fill`, async (e) => {
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0];
+            const featureId = feature.properties?.OBJECTID;
             
-            console.log('Feature clicked:', feature.properties);
-            
-            // If it's the sebaran rumah komersil layer, open the form with geometry
-            if (layerId === 'layer-sebaran-rumah-komersil') {
-              setClickedFeatureGeometry(feature.geometry);
-              setEditingHouse(null); // Create new house
-              setIsFormOpen(true);
+            if (featureId) {
+              // Highlight the clicked feature
+              map.current!.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
+              map.current!.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
+              
+              console.log('Feature clicked:', feature.properties);
+              
+              // If it's the registered houses layer, open in edit mode directly
+              if (layerId === 'layer-registered-houses') {
+                const houseId = feature.properties?.id;
+                if (houseId) {
+                  // Fetch the full house data
+                  const house = commercialHouses.find(h => h.id === houseId);
+                  if (house) {
+                    console.log('Opening registered house for edit:', house);
+                    setEditingHouse(house);
+                    setClickedFeatureGeometry(null);
+                    setIsFormOpen(true);
+                  } else {
+                    // If not in current list, fetch it
+                    try {
+                      const response = await fetch(`/api/commercial-houses/${houseId}`);
+                      if (response.ok) {
+                        const houseData = await response.json();
+                        setEditingHouse(houseData);
+                        setClickedFeatureGeometry(null);
+                        setIsFormOpen(true);
+                      }
+                    } catch (error) {
+                      console.error('Error fetching house:', error);
+                    }
+                  }
+                }
+              }
+              
+              // If it's the sebaran rumah komersil layer, check if registered and open form
+              if (layerId === 'layer-sebaran-rumah-komersil') {
+                const existingHouse = await checkGeometryRegistered(feature.geometry);
+                
+                if (existingHouse) {
+                  // Open in edit mode
+                  console.log('Opening existing house for edit:', existingHouse);
+                  setEditingHouse(existingHouse);
+                  setClickedFeatureGeometry(null);
+                } else {
+                  // Open in create mode
+                  console.log('Opening form for new house');
+                  setClickedFeatureGeometry(feature.geometry);
+                  setEditingHouse(null);
+                }
+                setIsFormOpen(true);
+              }
             }
           }
-        }
-      });
+        });
+      }
 
-      // Add hover effects
-      map.current.on('mouseenter', `${layerId}-fill`, () => {
-        map.current!.getCanvas().style.cursor = 'pointer';
-      });
+      // Add hover effects (skip for administrative layer)
+      if (layerId !== 'layer-peta-administrasi') {
+        map.current.on('mouseenter', `${layerId}-fill`, () => {
+          map.current!.getCanvas().style.cursor = 'pointer';
+        });
 
-      map.current.on('mouseleave', `${layerId}-fill`, () => {
-        map.current!.getCanvas().style.cursor = '';
-      });
+        map.current.on('mouseleave', `${layerId}-fill`, () => {
+          map.current!.getCanvas().style.cursor = '';
+        });
+      }
 
       console.log(`Layer ${layerId} loaded successfully`);
     } catch (error) {
       console.error(`Error loading layer ${layerId}:`, error);
     }
-  }, [addCommercialBuildingLabels, addAdministrativeLabels]);
+  }, [addCommercialBuildingLabels, addAdministrativeLabels, registeredGeometries, checkGeometryRegistered]);
 
   const toggleBaseMap = () => {
     setShowBaseMap(!showBaseMap);
@@ -848,6 +1008,7 @@ export default function CommercialHousesPage() {
     console.log('Loading layers for commercial houses map...');
     console.log('Map data:', mapData);
     console.log('Selected layers:', selectedLayers);
+    console.log('Registered geometries count:', registeredGeometries.size);
 
     // Sort map data by sortOrder
     const sortedMapData = [...mapData].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -864,7 +1025,20 @@ export default function CommercialHousesPage() {
         console.log(`No config found for layer: ${layerId} (${mapItem.name})`);
       }
     });
-  }, [currentView, mapReady, mapData, selectedLayers, loadLayer]);
+  }, [currentView, mapReady, mapData, selectedLayers, loadLayer, registeredGeometries]);
+
+  // Load registered houses layer when GeoJSON is available
+  useEffect(() => {
+    if (currentView !== 'map' || !mapReady || !map.current || !registeredHousesGeoJSON) return;
+
+    console.log('Loading registered houses layer...');
+    const layerId = 'layer-registered-houses';
+    const config = layerConfigs[layerId];
+    
+    if (config && registeredHousesGeoJSON) {
+      loadLayer(layerId, registeredHousesGeoJSON, config, 999); // High order to render on top
+    }
+  }, [currentView, mapReady, registeredHousesGeoJSON, loadLayer]);
 
   if (!isClient || isLoading) {
     return (
@@ -1134,6 +1308,7 @@ export default function CommercialHousesPage() {
                   {mapData.map((mapItem) => {
                     const layerId = `layer-${mapItem.name.toLowerCase().replace(/\s+/g, '-')}`;
                     const config = layerConfigs[layerId];
+                    
                     return (
                       <div key={mapItem.id} className="flex items-center space-x-2">
                         <div 
@@ -1144,6 +1319,19 @@ export default function CommercialHousesPage() {
                       </div>
                     );
                   })}
+                  
+                  {/* Show registered houses layer if available */}
+                  {registeredHousesGeoJSON && registeredHousesGeoJSON.features.length > 0 && (
+                    <div className="flex items-center space-x-2 border-t pt-2 mt-2">
+                      <div 
+                        className="w-4 h-4 rounded border-2 border-green-600"
+                        style={{ backgroundColor: '#2ecc71', opacity: 0.9 }}
+                      />
+                      <span className="text-xs font-medium text-green-700">
+                        Registered Houses ({registeredHousesGeoJSON.features.length})
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Card>
             </div>
