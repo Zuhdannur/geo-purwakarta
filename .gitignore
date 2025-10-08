@@ -42,3 +42,4 @@ next-env.d.ts
 
 # compiled seed file
 /prisma/seed.js
+/public/uploads
