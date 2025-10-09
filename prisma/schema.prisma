@@ -28,6 +28,7 @@ model Maps {
   id        Int      @id @default(autoincrement())
   name      String
   geojson   Json
+  color     String   @default("#3388ff") // Default blue color for map layers
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -46,7 +46,7 @@ services:
     networks:
       - app-network
     volumes:
-      - ./public:/app/public
+      - uploads_data:/app/public/uploads
     command: >
       sh -c "
         echo 'Waiting for database...' &&
@@ -78,6 +78,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  uploads_data:
     driver: local
 
 networks:

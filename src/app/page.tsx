@@ -6,6 +6,11 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Combobox } from '@/components/ui/combobox';
 import type { ComboboxOption } from '@/components/ui/combobox';
 import CommercialHouseModal from '@/components/CommercialHouseModal';
+import { Switch } from '@/components/ui/switch';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Set Mapbox access token
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
@@ -14,6 +19,7 @@ interface MapLayer {
   id: number;
   name: string;
   geojson: any;
+  color: string;
   sortOrder: number;
 }
 
@@ -23,6 +29,7 @@ export default function HomePage() {
   const [mapReady, setMapReady] = useState(false);
   const [layers, setLayers] = useState<MapLayer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
   
   // Filter states
   const [kecamatanOptions, setKecamatanOptions] = useState<ComboboxOption[]>([]);
@@ -46,6 +53,11 @@ export default function HomePage() {
     data: null,
     loading: false
   });
+  
+  // Recap dialog state
+  const [recapOpen, setRecapOpen] = useState(false);
+  const [recapData, setRecapData] = useState<any[]>([]);
+  const [recapLoading, setRecapLoading] = useState(false);
 
   // Fetch Kecamatan list
   useEffect(() => {
@@ -116,6 +128,10 @@ export default function HomePage() {
         const response = await fetch('/api/maps');
         const data = await response.json();
         setLayers(data);
+        
+        // Initialize all layers as visible
+        const allLayerIds = data.map((layer: MapLayer) => `map-layer-${layer.id}`);
+        setVisibleLayers(new Set(allLayerIds));
       } catch (error) {
         console.error('Error fetching layers:', error);
       } finally {
@@ -252,12 +268,8 @@ export default function HomePage() {
           f.geometry?.type === 'Point' || f.geometry?.type === 'MultiPoint'
         );
 
-        // Generate color based on layer index
-        const colors = [
-          '#4a90e2', '#e67e22', '#16a085', '#c0392b', 
-          '#8e44ad', '#27ae60', '#f39c12', '#e74c3c'
-        ];
-        const color = colors[index % colors.length];
+        // Use color from database or fallback to default
+        const color = layer.color || '#3388ff';
         const outlineColor = darkenColor(color, 0.3);
 
         // Add polygon layers
@@ -1043,6 +1055,95 @@ export default function HomePage() {
     return color;
   };
 
+  // Toggle layer visibility
+  const toggleLayerVisibility = (layerId: string) => {
+    setVisibleLayers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(layerId)) {
+        newSet.delete(layerId);
+      } else {
+        newSet.add(layerId);
+      }
+      
+      // Update map layer visibility
+      if (map.current) {
+        const visible = newSet.has(layerId);
+        const layerIds = [
+          layerId,
+          `${layerId}-outline`,
+          `${layerId}-hover`,
+          `${layerId}-hover-outline`
+        ];
+        
+        layerIds.forEach(id => {
+          if (map.current!.getLayer(id)) {
+            map.current!.setLayoutProperty(
+              id,
+              'visibility',
+              visible ? 'visible' : 'none'
+            );
+          }
+        });
+      }
+      
+      return newSet;
+    });
+  };
+
+  // Fetch recap data
+  const fetchRecapData = async () => {
+    setRecapLoading(true);
+    try {
+      const response = await fetch('/api/commercial-houses?limit=10000');
+      const data = await response.json();
+      
+      // Process data: group by kecamatan and year
+      const groupedData: { [key: string]: { [year: string]: number } } = {};
+      
+      data.data.forEach((house: any) => {
+        const kecamatan = house.kecamatan || 'Unknown';
+        const year = new Date(house.createdAt).getFullYear().toString();
+        
+        if (!groupedData[kecamatan]) {
+          groupedData[kecamatan] = {};
+        }
+        
+        if (!groupedData[kecamatan][year]) {
+          groupedData[kecamatan][year] = 0;
+        }
+        
+        groupedData[kecamatan][year]++;
+      });
+      
+      // Convert to chart format
+      const chartData: any[] = [];
+      const allYears = new Set<string>();
+      
+      // Collect all years
+      Object.values(groupedData).forEach(kecamatanData => {
+        Object.keys(kecamatanData).forEach(year => allYears.add(year));
+      });
+      
+      // Sort years
+      const sortedYears = Array.from(allYears).sort();
+      
+      // Build chart data
+      sortedYears.forEach(year => {
+        const dataPoint: any = { year };
+        Object.keys(groupedData).forEach(kecamatan => {
+          dataPoint[kecamatan] = groupedData[kecamatan][year] || 0;
+        });
+        chartData.push(dataPoint);
+      });
+      
+      setRecapData(chartData);
+    } catch (error) {
+      console.error('Error fetching recap data:', error);
+    } finally {
+      setRecapLoading(false);
+    }
+  };
+
   return (
     <div className="relative w-full h-screen">
       {/* Map Container */}
@@ -1101,6 +1202,118 @@ export default function HomePage() {
             disabled={!selectedKecamatan}
           />
         </div>
+
+        {/* Recap Button */}
+        <div className="bg-white rounded-lg shadow-lg p-3">
+          <Dialog open={recapOpen} onOpenChange={setRecapOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="w-full" 
+                variant="default"
+                onClick={() => {
+                  setRecapOpen(true);
+                  fetchRecapData();
+                }}
+              >
+                📊 Recap
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Commercial Houses Recap by Kecamatan & Year</DialogTitle>
+              </DialogHeader>
+              
+              <div className="mt-4">
+                {recapLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : recapData.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="h-[400px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={recapData}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="year" 
+                            label={{ value: 'Year', position: 'insideBottom', offset: -10 }}
+                          />
+                          <YAxis 
+                            label={{ value: 'Number of Houses', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip />
+                          <Legend 
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="rect"
+                          />
+                          {recapData.length > 0 && Object.keys(recapData[0])
+                            .filter(key => key !== 'year')
+                            .map((kecamatan, index) => {
+                              const colors = [
+                                '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+                                '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
+                              ];
+                              return (
+                                <Bar 
+                                  key={kecamatan} 
+                                  dataKey={kecamatan} 
+                                  fill={colors[index % colors.length]}
+                                  name={kecamatan}
+                                />
+                              );
+                            })
+                          }
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    {/* Summary Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <div className="text-sm text-blue-600 font-medium">Total Houses</div>
+                        <div className="text-2xl font-bold text-blue-700">
+                          {recapData.reduce((sum, item) => {
+                            return sum + Object.keys(item)
+                              .filter(key => key !== 'year')
+                              .reduce((s, k) => s + (item[k] || 0), 0);
+                          }, 0)}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <div className="text-sm text-green-600 font-medium">Kecamatan Count</div>
+                        <div className="text-2xl font-bold text-green-700">
+                          {recapData.length > 0 ? Object.keys(recapData[0]).filter(key => key !== 'year').length : 0}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-purple-50 p-4 rounded-lg">
+                        <div className="text-sm text-purple-600 font-medium">Year Range</div>
+                        <div className="text-2xl font-bold text-purple-700">
+                          {recapData.length > 0 ? `${recapData[0].year} - ${recapData[recapData.length - 1].year}` : '-'}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-orange-50 p-4 rounded-lg">
+                        <div className="text-sm text-orange-600 font-medium">Data Points</div>
+                        <div className="text-2xl font-bold text-orange-700">
+                          {recapData.length}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    No data available
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Loading Indicator */}
@@ -1115,40 +1328,59 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Layer Info */}
+      {/* Layer Control */}
       {!loading && layers.length > 0 && (
-        <div className="absolute bottom-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-xs">
-          <h3 className="font-bold text-sm mb-2">Active Layers ({layers.length + (registeredHouses?.features?.length > 0 ? 1 : 0)})</h3>
-          <div className="text-xs space-y-1 max-h-48 overflow-y-auto">
-            {layers.map((layer, index) => {
-              const colors = [
-                '#4a90e2', '#e67e22', '#16a085', '#c0392b', 
-                '#8e44ad', '#27ae60', '#f39c12', '#e74c3c'
-              ];
-              const color = colors[index % colors.length];
+        <div className="absolute bottom-4 right-4 z-10">
+          <Card className="p-4 bg-white/90 backdrop-blur-sm max-w-xs">
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-gray-700 mb-3">Map Layers</div>
+              {layers.map((layer) => {
+                const layerId = `map-layer-${layer.id}`;
+                const isVisible = visibleLayers.has(layerId);
+                
+                // These layers are always visible (no toggle)
+                const alwaysVisible = layer.name.toLowerCase().includes('sebaran rumah komersil') || 
+                                     layer.name.toLowerCase().includes('peta administrasi') ||
+                                     layer.name.toLowerCase().includes('administrative');
+                
+                return (
+                  <div key={layer.id} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div 
+                        className="w-4 h-4 rounded border flex-shrink-0"
+                        style={{ backgroundColor: layer.color || '#3388ff' }}
+                      />
+                      <span className={`text-xs truncate ${alwaysVisible ? 'font-medium text-gray-700' : 'text-gray-600'}`}>
+                        {layer.name}
+                      </span>
+                    </div>
+                    {!alwaysVisible ? (
+                      <Switch
+                        checked={isVisible}
+                        onCheckedChange={() => toggleLayerVisibility(layerId)}
+                        className="flex-shrink-0"
+                      />
+                    ) : (
+                      <span className="text-[9px] text-gray-400 flex-shrink-0 uppercase tracking-wide">Always On</span>
+                    )}
+                  </div>
+                );
+              })}
               
-              return (
-                <div key={layer.id} className="flex items-center gap-2">
+              {/* Show registered houses layer if available */}
+              {registeredHouses && registeredHouses.features.length > 0 && (
+                <div className="flex items-center gap-2 border-t pt-3 mt-2">
                   <div 
-                    className="w-4 h-4 rounded border border-gray-300" 
-                    style={{ backgroundColor: color, opacity: 0.6 }}
+                    className="w-4 h-4 rounded border-2 border-green-600 flex-shrink-0"
+                    style={{ backgroundColor: '#2ecc71', opacity: 0.9 }}
                   />
-                  <span className="text-gray-700">{layer.name}</span>
+                  <span className="text-xs font-medium text-green-700">
+                    Registered Houses ({registeredHouses.features.length})
+                  </span>
                 </div>
-              );
-            })}
-            {registeredHouses && registeredHouses.features.length > 0 && (
-              <div className="flex items-center gap-2 border-t pt-1 mt-1">
-                <div 
-                  className="w-4 h-4 rounded border border-gray-300" 
-                  style={{ backgroundColor: '#2ecc71', opacity: 0.6 }}
-                />
-                <span className="text-gray-700 font-semibold">
-                  Registered Commercial Houses ({registeredHouses.features.length})
-                </span>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </Card>
         </div>
       )}
     </div>

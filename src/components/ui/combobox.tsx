@@ -94,12 +94,16 @@ export function Combobox({
                     const parts = selected.split('__')
                     const idx = parseInt(parts[parts.length - 1])
                     if (!isNaN(idx) && options[idx]) {
-                      const newValue = options[idx].value === value ? "" : options[idx].value
-                      onValueChange?.(newValue)
+                      // Simply select the clicked option without toggling
+                      onValueChange?.(options[idx].value)
                       setOpen(false)
                     }
                   }}
                   disabled={option.disabled}
+                  className={cn(
+                    "cursor-pointer",
+                    value === option.value && "bg-accent"
+                  )}
                 >
                   {option.label}
                   <Check
@@ -188,33 +192,40 @@ export function MultiCombobox({
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {options.map((option, index) => (
-                <CommandItem
-                  key={`${option.value}-${index}`}
-                  value={`${option.label}__${index}`}
-                  keywords={[option.label, option.value]}
-                  onSelect={(selected) => {
-                    // Extract index from the selected value
-                    const parts = selected.split('__')
-                    const idx = parseInt(parts[parts.length - 1])
-                    if (!isNaN(idx) && options[idx]) {
-                      const newValues = values.includes(options[idx].value)
-                        ? values.filter((value) => value !== options[idx].value)
-                        : [...values, options[idx].value]
-                      onValuesChange?.(newValues)
-                    }
-                  }}
-                  disabled={option.disabled}
-                >
-                  {option.label}
-                  <Check
+              {options.map((option, index) => {
+                const isSelected = values.includes(option.value)
+                return (
+                  <CommandItem
+                    key={`${option.value}-${index}`}
+                    value={`${option.label}__${index}`}
+                    keywords={[option.label, option.value]}
+                    onSelect={(selected) => {
+                      // Extract index from the selected value
+                      const parts = selected.split('__')
+                      const idx = parseInt(parts[parts.length - 1])
+                      if (!isNaN(idx) && options[idx]) {
+                        const newValues = values.includes(options[idx].value)
+                          ? values.filter((value) => value !== options[idx].value)
+                          : [...values, options[idx].value]
+                        onValuesChange?.(newValues)
+                      }
+                    }}
+                    disabled={option.disabled}
                     className={cn(
-                      "ml-auto h-4 w-4",
-                      values.includes(option.value) ? "opacity-100" : "opacity-0"
+                      "cursor-pointer",
+                      isSelected && "bg-accent"
                     )}
-                  />
-                </CommandItem>
-              ))}
+                  >
+                    {option.label}
+                    <Check
+                      className={cn(
+                        "ml-auto h-4 w-4",
+                        isSelected ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                )
+              })}
             </CommandGroup>
           </CommandList>
         </Command>

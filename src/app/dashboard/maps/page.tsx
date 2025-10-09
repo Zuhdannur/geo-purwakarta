@@ -11,7 +11,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
 
-type MapRow = { id: number; name: string; createdAt: string; updatedAt: string };
+type MapRow = { id: number; name: string; color: string; createdAt: string; updatedAt: string };
 
 export default function MapsPage() {
   const [rows, setRows] = useState<MapRow[]>([]);
@@ -20,12 +20,14 @@ export default function MapsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState('');
+  const [color, setColor] = useState('#3388ff');
   const [geojsonFile, setGeojsonFile] = useState<File | null>(null);
   const [currentGeojson, setCurrentGeojson] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewName, setPreviewName] = useState('');
+  const [previewColor, setPreviewColor] = useState('#3388ff');
   const [previewGeojson, setPreviewGeojson] = useState<any>(null);
 
   const isEditing = editingId !== null;
@@ -50,6 +52,7 @@ export default function MapsPage() {
   const openCreate = () => {
     setEditingId(null);
     setName('');
+    setColor('#3388ff');
     setGeojsonFile(null);
     setCurrentGeojson(null);
     setIsFormOpen(true);
@@ -62,6 +65,7 @@ export default function MapsPage() {
       const m = await res.json();
       setEditingId(id);
       setName(m.name);
+      setColor(m.color || '#3388ff');
       setCurrentGeojson(m.geojson ?? {});
       setGeojsonFile(null);
       setIsFormOpen(true);
@@ -87,12 +91,12 @@ export default function MapsPage() {
         throw new Error('GeoJSON file is required');
       }
       if (isEditing) {
-        const body: any = { name };
+        const body: any = { name, color };
         if (geojsonFile) body.geojson = parsed; else body.geojson = currentGeojson;
         const res = await fetch(`/api/maps/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!res.ok) throw new Error('Failed to update');
       } else {
-        const res = await fetch('/api/maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, geojson: parsed }) });
+        const res = await fetch('/api/maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color, geojson: parsed }) });
         if (!res.ok) throw new Error('Failed to create');
       }
       setIsFormOpen(false);
@@ -124,6 +128,7 @@ export default function MapsPage() {
       if (!res.ok) throw new Error('Failed to load map');
       const m = await res.json();
       setPreviewName(m.name);
+      setPreviewColor(m.color || '#3388ff');
       setPreviewGeojson(m.geojson ?? null);
       setIsPreviewOpen(true);
     } catch (e: any) {
@@ -188,6 +193,7 @@ export default function MapsPage() {
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="text-left px-3 py-2 border-b">Name</th>
+                    <th className="text-left px-3 py-2 border-b">Color</th>
                     <th className="text-left px-3 py-2 border-b">Created</th>
                     <th className="text-right px-3 py-2 border-b">Actions</th>
                   </tr>
@@ -196,6 +202,7 @@ export default function MapsPage() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
                       <td className="px-3 py-3 border-t"><div className="h-4 w-40 bg-gray-200 rounded" /></td>
+                      <td className="px-3 py-3 border-t"><div className="h-6 w-20 bg-gray-200 rounded" /></td>
                       <td className="px-3 py-3 border-t"><div className="h-4 w-56 bg-gray-200 rounded" /></td>
                       <td className="px-3 py-3 border-t">
                         <div className="flex items-center justify-end gap-2">
@@ -220,6 +227,7 @@ export default function MapsPage() {
                       <tr className="bg-gray-50">
                         <th className="w-8 px-2 py-2 border-b"></th>
                         <th className="text-left px-3 py-2 border-b">Name</th>
+                        <th className="text-left px-3 py-2 border-b">Color</th>
                         <th className="text-left px-3 py-2 border-b">Created</th>
                         <th className="text-right px-3 py-2 border-b">Actions</th>
                       </tr>
@@ -231,6 +239,16 @@ export default function MapsPage() {
                             <GripVertical className="h-4 w-4 cursor-grab" />
                           </td>
                           <td className="px-3 py-2 border-t">{row.name}</td>
+                          <td className="px-3 py-2 border-t">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-10 h-6 rounded border border-gray-300" 
+                                style={{ backgroundColor: row.color }}
+                                title={row.color}
+                              />
+                              <span className="text-xs text-gray-500">{row.color}</span>
+                            </div>
+                          </td>
                           <td className="px-3 py-2 border-t">{new Date(row.createdAt).toLocaleString()}</td>
                           <td className="px-3 py-2 border-t">
                             <div className="flex items-center justify-end gap-2">
@@ -268,6 +286,26 @@ export default function MapsPage() {
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="Map name" disabled={busy} />
             </div>
             <div className="grid gap-2">
+              <label className="text-sm">Layer Color</label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="color" 
+                  value={color} 
+                  onChange={e => setColor(e.target.value)} 
+                  disabled={busy}
+                  className="w-20 h-10 p-1 cursor-pointer"
+                />
+                <Input 
+                  type="text" 
+                  value={color} 
+                  onChange={e => setColor(e.target.value)} 
+                  placeholder="#3388ff" 
+                  disabled={busy}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
               <label className="text-sm">GeoJSON file {isEditing ? <span className="text-xs text-gray-500">(optional on update)</span> : <span className="text-xs text-gray-500">(required)</span>}</label>
               <Input type="file" accept=".json,application/geo+json,application/json" onChange={e => setGeojsonFile(e.target.files?.[0] || null)} disabled={busy} />
             </div>
@@ -291,7 +329,7 @@ export default function MapsPage() {
             <DialogDescription>GeoJSON rendered on an interactive map.</DialogDescription>
           </DialogHeader>
           <div className="h-[480px] w-full">
-            {previewGeojson ? <MapPreview geojson={previewGeojson} /> : <div className="text-sm text-gray-600">No data</div>}
+            {previewGeojson ? <MapPreview geojson={previewGeojson} color={previewColor} /> : <div className="text-sm text-gray-600">No data</div>}
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setIsPreviewOpen(false)}>Close</Button>
@@ -302,7 +340,7 @@ export default function MapsPage() {
   );
 }
 
-function MapPreview({ geojson }: { geojson: any }) {
+function MapPreview({ geojson, color = '#3388ff' }: { geojson: any; color?: string }) {
   const [mounted, setMounted] = useState(false);
   const containerId = 'map-preview-' + Math.random().toString(36).slice(2);
   useEffect(() => { setMounted(true); }, []);
@@ -322,12 +360,23 @@ function MapPreview({ geojson }: { geojson: any }) {
         const hasPolygons = features.some((f: any) => (f.geometry?.type || '').includes('Polygon'));
         const hasLines = features.some((f: any) => (f.geometry?.type || '').includes('Line'));
         const hasPoints = features.some((f: any) => ['Point','MultiPoint'].includes(f.geometry?.type));
+        
+        // Helper function to lighten color for fill
+        const lightenColor = (hex: string, percent: number) => {
+          const num = parseInt(hex.replace('#', ''), 16);
+          const amt = Math.round(2.55 * percent);
+          const R = Math.min(255, ((num >> 16) & 0xFF) + amt);
+          const G = Math.min(255, ((num >> 8) & 0xFF) + amt);
+          const B = Math.min(255, (num & 0xFF) + amt);
+          return '#' + ((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1);
+        };
+        
         if (hasPolygons) {
-          map.addLayer({ id: 'preview-fill', type: 'fill', source: sourceId, paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.3 } });
-          map.addLayer({ id: 'preview-outline', type: 'line', source: sourceId, paint: { 'line-color': '#1d4ed8', 'line-width': 2 } });
+          map.addLayer({ id: 'preview-fill', type: 'fill', source: sourceId, paint: { 'fill-color': color, 'fill-opacity': 0.3 } });
+          map.addLayer({ id: 'preview-outline', type: 'line', source: sourceId, paint: { 'line-color': color, 'line-width': 2 } });
         }
-        if (hasLines) map.addLayer({ id: 'preview-line', type: 'line', source: sourceId, paint: { 'line-color': '#16a34a', 'line-width': 3 } });
-        if (hasPoints) map.addLayer({ id: 'preview-point', type: 'circle', source: sourceId, paint: { 'circle-radius': 4, 'circle-color': '#ef4444', 'circle-stroke-width': 1, 'circle-stroke-color': '#7f1d1d' } });
+        if (hasLines) map.addLayer({ id: 'preview-line', type: 'line', source: sourceId, paint: { 'line-color': color, 'line-width': 3 } });
+        if (hasPoints) map.addLayer({ id: 'preview-point', type: 'circle', source: sourceId, paint: { 'circle-radius': 6, 'circle-color': color, 'circle-stroke-width': 2, 'circle-stroke-color': lightenColor(color, -30) } });
         try {
           const mod = await import('@turf/bbox');
           const turfBbox = (mod as any).default ? (mod as any).default(geojson) : (mod as any)(geojson);
@@ -338,7 +387,7 @@ function MapPreview({ geojson }: { geojson: any }) {
       });
     })();
     return () => { try { mapRef && mapRef.remove(); } catch {} };
-  }, [mounted, containerId, geojson]);
+  }, [mounted, containerId, geojson, color]);
   return <div id={containerId} className="h-full w-full" />;
 }
 

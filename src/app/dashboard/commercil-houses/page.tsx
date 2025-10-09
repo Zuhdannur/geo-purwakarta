@@ -22,6 +22,7 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +78,7 @@ interface MapData {
   id: number;
   name: string;
   geojson: any;
+  color: string;
   sortOrder: number;
 }
 
@@ -169,6 +171,7 @@ export default function CommercialHousesPage() {
   const [showBaseMap, setShowBaseMap] = useState(true);
   const [registeredGeometries, setRegisteredGeometries] = useState<Set<string>>(new Set());
   const [registeredHousesGeoJSON, setRegisteredHousesGeoJSON] = useState<any>(null);
+  const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -434,6 +437,9 @@ export default function CommercialHousesPage() {
       });
       console.log('Auto-selected layers:', allLayerIds);
       setSelectedLayers(allLayerIds);
+      
+      // Initialize all layers as visible
+      setVisibleLayers(new Set(allLayerIds));
     } catch (err: any) {
       console.error('Error loading map data:', err);
       setMapError(err?.message || 'Failed to load map data');
@@ -1001,6 +1007,58 @@ export default function CommercialHousesPage() {
     setShowBaseMap(!showBaseMap);
   };
 
+  // Toggle layer visibility
+  const toggleLayerVisibility = (layerId: string) => {
+    setVisibleLayers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(layerId)) {
+        newSet.delete(layerId);
+      } else {
+        newSet.add(layerId);
+      }
+      
+      // Update map layer visibility
+      if (map.current) {
+        const visible = newSet.has(layerId);
+        const layerIds = [
+          `${layerId}-fill`,
+          `${layerId}-outline`,
+          `${layerId}-highlighted`,
+          `${layerId}-highlighted-outline`,
+          `${layerId}-labels-commercial`,
+          `${layerId}-labels-kecamatan`,
+          `${layerId}-labels-kelurahan`
+        ];
+        
+        layerIds.forEach(id => {
+          if (map.current!.getLayer(id)) {
+            map.current!.setLayoutProperty(
+              id,
+              'visibility',
+              visible ? 'visible' : 'none'
+            );
+          }
+        });
+      }
+      
+      return newSet;
+    });
+  };
+
+  // Helper function to darken color for outline
+  const darkenColor = useCallback((hex: string, percent: number = 30): string => {
+    try {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = Math.max(0, ((num >> 16) & 0xFF) - amt);
+      const G = Math.max(0, ((num >> 8) & 0xFF) - amt);
+      const B = Math.max(0, (num & 0xFF) - amt);
+      return '#' + ((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1);
+    } catch {
+      return '#000000'; // fallback to black
+    }
+  }, []);
+
   // Load layers when map is ready and data is available
   useEffect(() => {
     if (currentView !== 'map' || !mapReady || !map.current || mapData.length === 0) return;
@@ -1016,16 +1074,23 @@ export default function CommercialHousesPage() {
     // Load each layer in order
     sortedMapData.forEach((mapItem, index) => {
       const layerId = `layer-${mapItem.name.toLowerCase().replace(/\s+/g, '-')}`;
-      const config = layerConfigs[layerId];
       
-      if (config && mapItem.geojson) {
-        console.log(`Loading layer: ${layerId} (${mapItem.name})`);
+      // Create dynamic config from map data
+      const config: LayerConfig = {
+        id: layerId,
+        name: mapItem.name,
+        color: mapItem.color || '#3388ff', // Use color from DB or fallback
+        outlineColor: darkenColor(mapItem.color || '#3388ff', 30) // Darker outline
+      };
+      
+      if (mapItem.geojson) {
+        console.log(`Loading layer: ${layerId} (${mapItem.name}) with color: ${config.color}`);
         loadLayer(layerId, mapItem.geojson, config, index + 1);
       } else {
-        console.log(`No config found for layer: ${layerId} (${mapItem.name})`);
+        console.log(`No GeoJSON found for layer: ${layerId} (${mapItem.name})`);
       }
     });
-  }, [currentView, mapReady, mapData, selectedLayers, loadLayer, registeredGeometries]);
+  }, [currentView, mapReady, mapData, selectedLayers, loadLayer, registeredGeometries, darkenColor]);
 
   // Load registered houses layer when GeoJSON is available
   useEffect(() => {
@@ -1302,29 +1367,45 @@ export default function CommercialHousesPage() {
             
             {/* Map Controls */}
             <div className="absolute top-4 left-4 space-y-2">
-              <Card className="p-3 bg-white/90 backdrop-blur-sm">
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-700">Layers</div>
+              <Card className="p-4 bg-white/90 backdrop-blur-sm max-w-xs">
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold text-gray-700 mb-3">Map Layers</div>
                   {mapData.map((mapItem) => {
                     const layerId = `layer-${mapItem.name.toLowerCase().replace(/\s+/g, '-')}`;
-                    const config = layerConfigs[layerId];
+                    const isVisible = visibleLayers.has(layerId);
+                    
+                    // These layers are always visible (no toggle)
+                    const alwaysVisible = layerId === 'layer-sebaran-rumah-komersil' || layerId === 'layer-peta-administrasi';
                     
                     return (
-                      <div key={mapItem.id} className="flex items-center space-x-2">
-                        <div 
-                          className="w-4 h-4 rounded border"
-                          style={{ backgroundColor: config?.color || '#ccc' }}
-                        />
-                        <span className="text-xs text-gray-600">{mapItem.name}</span>
+                      <div key={mapItem.id} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div 
+                            className="w-4 h-4 rounded border flex-shrink-0"
+                            style={{ backgroundColor: mapItem.color || '#ccc' }}
+                          />
+                          <span className={`text-xs truncate ${alwaysVisible ? 'font-medium text-gray-700' : 'text-gray-600'}`}>
+                            {mapItem.name}
+                          </span>
+                        </div>
+                        {!alwaysVisible ? (
+                          <Switch
+                            checked={isVisible}
+                            onCheckedChange={() => toggleLayerVisibility(layerId)}
+                            className="flex-shrink-0"
+                          />
+                        ) : (
+                          <span className="text-[9px] text-gray-400 flex-shrink-0 uppercase tracking-wide">Always On</span>
+                        )}
                       </div>
                     );
                   })}
                   
                   {/* Show registered houses layer if available */}
                   {registeredHousesGeoJSON && registeredHousesGeoJSON.features.length > 0 && (
-                    <div className="flex items-center space-x-2 border-t pt-2 mt-2">
+                    <div className="flex items-center gap-2 border-t pt-3 mt-2">
                       <div 
-                        className="w-4 h-4 rounded border-2 border-green-600"
+                        className="w-4 h-4 rounded border-2 border-green-600 flex-shrink-0"
                         style={{ backgroundColor: '#2ecc71', opacity: 0.9 }}
                       />
                       <span className="text-xs font-medium text-green-700">
