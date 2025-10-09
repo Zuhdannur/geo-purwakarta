@@ -39,11 +39,13 @@ import {
   Building,
   Calendar,
   Table as TableIcon,
-  Layers
+  Layers,
+  Download
 } from 'lucide-react';
 import CommercialHouseForm from '@/components/CommercialHouseForm';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import * as XLSX from 'xlsx';
 
 // Set Mapbox access token
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
@@ -154,6 +156,7 @@ export default function CommercialHousesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKecamatan, setSelectedKecamatan] = useState('');
   const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
   
   // Dialog state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -413,6 +416,78 @@ export default function CommercialHousesPage() {
     e.preventDefault();
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page
     fetchCommercialHouses();
+  };
+
+  const handleExportToExcel = async () => {
+    setExporting(true);
+    try {
+      // Fetch all commercial houses (no pagination)
+      const response = await fetch('/api/commercial-houses?limit=100000');
+      const data = await response.json();
+      
+      if (!data.data || data.data.length === 0) {
+        alert('No data to export');
+        return;
+      }
+
+      // Prepare data for Excel
+      const excelData = data.data.map((house: CommercialHouse) => ({
+        'ID SRK': house.idSrk || '',
+        'Kawasan Perumahan': house.kawasanPerumahan || '',
+        'Alamat': house.alamat || '',
+        'Kecamatan': house.kecamatan || '',
+        'Kelurahan/Desa': house.kelurahanDesa || '',
+        'Nama Pengembang': house.namaPengembang || '',
+        'No. Izin': house.noIzin || '',
+        'Penutup Lahan': house.penutupLahan || '',
+        'Rawan Bencana': house.rawanBencana || '',
+        'Rencana Pola Ruang': house.rencanaPolaRuang || '',
+        'Koordinat': house.koordinat || '',
+        'Jumlah Foto': house.foto?.length || 0,
+        'Tanggal Dibuat': new Date(house.createdAt).toLocaleString('id-ID'),
+        'Terakhir Diupdate': new Date(house.updatedAt).toLocaleString('id-ID'),
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Set column widths
+      const columnWidths = [
+        { wch: 15 }, // ID SRK
+        { wch: 25 }, // Kawasan Perumahan
+        { wch: 35 }, // Alamat
+        { wch: 20 }, // Kecamatan
+        { wch: 20 }, // Kelurahan/Desa
+        { wch: 25 }, // Nama Pengembang
+        { wch: 20 }, // No. Izin
+        { wch: 20 }, // Penutup Lahan
+        { wch: 20 }, // Rawan Bencana
+        { wch: 25 }, // Rencana Pola Ruang
+        { wch: 20 }, // Koordinat
+        { wch: 12 }, // Jumlah Foto
+        { wch: 20 }, // Tanggal Dibuat
+        { wch: 20 }, // Terakhir Diupdate
+      ];
+      ws['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Commercial Houses');
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `commercial-houses-${timestamp}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+      
+      console.log(`Exported ${excelData.length} records to ${filename}`);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export data');
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Map functions
@@ -1239,7 +1314,27 @@ export default function CommercialHousesPage() {
             {/* Data Table */}
             <Card>
               <CardHeader>
-                <CardTitle>Commercial Houses ({pagination.total} total)</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Commercial Houses ({pagination.total} total)</CardTitle>
+                  <Button 
+                    onClick={handleExportToExcel}
+                    disabled={exporting || loading}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {exporting ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export to Excel
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
