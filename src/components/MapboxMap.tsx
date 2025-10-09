@@ -6,7 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import FeatureDrawer from './FeatureDrawer';
 
 // Set Mapbox access token
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
 
 interface MapboxMapProps {
   activeMenu: string | null;

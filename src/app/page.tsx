@@ -8,7 +8,7 @@ import type { ComboboxOption } from '@/components/ui/combobox';
 import CommercialHouseModal from '@/components/CommercialHouseModal';
 
 // Set Mapbox access token
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
 
 interface MapLayer {
   id: number;

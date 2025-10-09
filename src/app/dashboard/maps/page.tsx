@@ -311,7 +311,7 @@ function MapPreview({ geojson }: { geojson: any }) {
     let mapRef: any;
     (async () => {
       const mapboxgl = (await import('mapbox-gl')).default;
-      mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+      mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
       const map = new mapboxgl.Map({ container: containerId, style: 'mapbox://styles/mapbox/light-v11', center: [107.4439, -6.5569], zoom: 10, attributionControl: false });
       mapRef = map;
       map.on('load', async () => {
