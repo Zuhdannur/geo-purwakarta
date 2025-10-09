@@ -609,6 +609,89 @@ export default function HomePage() {
 
   }, [mapReady, layers, selectedKecamatan, selectedDesa]);
 
+  // Helper function to get the center of a polygon
+  const getPolygonCenter = (coordinates: any): [number, number] | null => {
+    if (!coordinates || coordinates.length === 0) return null;
+
+    let ring = null;
+    if (coordinates[0] && Array.isArray(coordinates[0])) {
+      if (coordinates[0][0] && Array.isArray(coordinates[0][0]) && coordinates[0][0].length > 0) {
+        if (Array.isArray(coordinates[0][0][0]) && coordinates[0][0][0].length >= 2) {
+          ring = coordinates[0][0];
+        } else {
+          ring = coordinates[0];
+        }
+      } else {
+        ring = coordinates[0];
+      }
+    }
+    
+    if (!ring || ring.length < 3) return null;
+
+    // Calculate centroid using shoelace formula
+    let area = 0;
+    let centroidX = 0;
+    let centroidY = 0;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      const coord1 = ring[i];
+      const coord2 = ring[i + 1];
+      
+      const x1 = coord1[0];
+      const y1 = coord1[1];
+      const x2 = coord2[0];
+      const y2 = coord2[1];
+      
+      if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
+          !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+        continue;
+      }
+
+      const cross = x1 * y2 - x2 * y1;
+      area += cross;
+      centroidX += (x1 + x2) * cross;
+      centroidY += (y1 + y2) * cross;
+    }
+
+    if (Math.abs(area) > 1e-10) {
+      area /= 2;
+      centroidX /= (6 * area);
+      centroidY /= (6 * area);
+      
+      return [centroidX, centroidY];
+    }
+
+    // Fallback to bounding box center
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let validCoords = 0;
+
+    for (const coord of ring) {
+      if (Array.isArray(coord) && coord.length >= 2) {
+        const x = coord[0];
+        const y = coord[1];
+        
+        if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+          validCoords++;
+        }
+      }
+    }
+
+    if (validCoords > 0 && isFinite(minX) && isFinite(maxX) && isFinite(minY) && isFinite(maxY)) {
+      const centerX = minX + (maxX - minX) / 2;
+      const centerY = minY + (maxY - minY) / 2;
+      
+      if (!isNaN(centerX) && !isNaN(centerY) && isFinite(centerX) && isFinite(centerY)) {
+        return [centerX, centerY];
+      }
+    }
+
+    return null;
+  };
+
   // Load registered commercial houses layer (always on top)
   useEffect(() => {
     if (!mapReady || !map.current || !registeredHouses || registeredHouses.features.length === 0) return;
@@ -618,13 +701,17 @@ export default function HomePage() {
     const outlineLayerId = 'registered-houses-outline';
     const hoverLayerId = 'registered-houses-hover';
     const hoverOutlineLayerId = 'registered-houses-hover-outline';
+    const labelSourceId = 'registered-houses-labels-source';
+    const labelLayerId = 'registered-houses-labels';
 
     try {
       // Remove existing layers if they exist
+      if (map.current.getLayer(labelLayerId)) map.current.removeLayer(labelLayerId);
       if (map.current.getLayer(hoverOutlineLayerId)) map.current.removeLayer(hoverOutlineLayerId);
       if (map.current.getLayer(hoverLayerId)) map.current.removeLayer(hoverLayerId);
       if (map.current.getLayer(outlineLayerId)) map.current.removeLayer(outlineLayerId);
       if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+      if (map.current.getSource(labelSourceId)) map.current.removeSource(labelSourceId);
       if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
 
       // Add source
@@ -633,14 +720,14 @@ export default function HomePage() {
         data: registeredHouses
       });
 
-      // Add fill layer with bright green color
+      // Add fill layer with extremely bright green color
       map.current.addLayer({
         id: layerId,
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': '#2ecc71', // Bright green
-          'fill-opacity': 0.5
+          'fill-color': '#00ff00', // Neon lime green - brightest possible
+          'fill-opacity': 0.85 // High opacity to be visible even when behind other layers
         }
       });
 
@@ -650,8 +737,8 @@ export default function HomePage() {
         type: 'line',
         source: sourceId,
         paint: {
-          'line-color': '#27ae60', // Darker green
-          'line-width': 2
+          'line-color': '#00dd00', // Bright lime green
+          'line-width': 3 // Thicker outline
         }
       });
 
@@ -678,6 +765,69 @@ export default function HomePage() {
         },
         filter: ['==', ['get', '_featureId'], '']
       });
+
+      // Create labels for registered houses showing developer name
+      const labelData: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: registeredHouses.features.map((feature: any) => {
+          const center = getPolygonCenter(feature.geometry.coordinates);
+          if (center) {
+            const namaPengembang = feature.properties.namaPengembang || feature.properties.namaDeveloper || 'Unknown Developer';
+            const kawasan = feature.properties.kawasanPerumahan || '';
+            // Show developer name prominently
+            const combinedLabel = kawasan ? `${namaPengembang}\n${kawasan}` : namaPengembang;
+            
+            return {
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: center
+              },
+              properties: {
+                label: combinedLabel,
+                featureId: feature.properties.id || feature.properties._featureId
+              }
+            };
+          }
+          return null;
+        }).filter(Boolean)
+      };
+
+      // Add label source
+      map.current.addSource(labelSourceId, {
+        type: 'geojson',
+        data: labelData
+      });
+
+      // Add label layer - positioned at the top of all layers
+      map.current.addLayer({
+        id: labelLayerId,
+        type: 'symbol',
+        source: labelSourceId,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': 13,
+          'text-anchor': 'center',
+          'text-allow-overlap': true,
+          'text-ignore-placement': true
+        },
+        paint: {
+          'text-color': '#00aa00', // Bright green text
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2.5
+        }
+      });
+
+      // Ensure labels are on top by moving to the top of the layer stack
+      setTimeout(() => {
+        if (map.current && map.current.getLayer(labelLayerId)) {
+          map.current.moveLayer(labelLayerId);
+          console.log('✅ Moved registered houses labels to top of layer stack');
+        }
+      }, 100);
+
+      console.log('✅ Added labels for', labelData.features.length, 'registered houses');
 
       // Add click handler
       map.current.on('click', layerId, async (e) => {
@@ -752,10 +902,12 @@ export default function HomePage() {
     return () => {
       // Cleanup on unmount
       if (map.current) {
+        if (map.current.getLayer(labelLayerId)) map.current.removeLayer(labelLayerId);
         if (map.current.getLayer(hoverOutlineLayerId)) map.current.removeLayer(hoverOutlineLayerId);
         if (map.current.getLayer(hoverLayerId)) map.current.removeLayer(hoverLayerId);
         if (map.current.getLayer(outlineLayerId)) map.current.removeLayer(outlineLayerId);
         if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+        if (map.current.getSource(labelSourceId)) map.current.removeSource(labelSourceId);
         if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
       }
     };
