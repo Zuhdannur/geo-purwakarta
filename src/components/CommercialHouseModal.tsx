@@ -6,14 +6,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 interface CommercialHouseData {
   id: string;
-  idSrk: string | null;
-  kawasanPerumahan: string | null;
+  namaPerumahan: string | null;
   alamat: string | null;
-  kecamatan: string | null;
   kelurahanDesa: string | null;
-  penutupLahan: string | null;
-  rawanBencana: string | null;
-  rencanaPolaRuang: string | null;
+  kecamatan: string | null;
+  namaPengembangan: string | null;
+  rawanBanjir: string | null;
+  gerakanTanah: string | null;
+  gempaBumi: string | null;
+  dataLainnya: string | null;
   koordinat: string | null;
   foto: string[];
 }
@@ -70,32 +71,35 @@ export default function CommercialHouseModal({
               </div>
             ) : data ? (
               <div>
-                {/* ID SRK */}
-                {renderField('ID SRK', data.idSrk)}
-
-                {/* Kawasan Perumahan */}
-                {renderField('Kawasan Perumahan', data.kawasanPerumahan)}
+                {/* Nama Perumahan */}
+                {renderField('Nama Perumahan', data.namaPerumahan)}
 
                 {/* Alamat */}
                 {renderField('Alamat', data.alamat)}
 
-                {/* Kecamatan */}
-                {renderField('Kecamatan', data.kecamatan)}
-
                 {/* Kelurahan/Desa */}
                 {renderField('Kelurahan/Desa', data.kelurahanDesa)}
 
-                {/* Penutup Lahan */}
-                {renderField('Penutup Lahan', data.penutupLahan)}
+                {/* Kecamatan */}
+                {renderField('Kecamatan', data.kecamatan)}
 
-                {/* Rawan Bencana */}
-                {renderField('Rawan Bencana', data.rawanBencana)}
+                {/* Nama Pengembangan */}
+                {renderField('Nama Pengembangan', data.namaPengembangan)}
 
-                {/* Rencana Pola Ruang */}
-                {renderField('Rencana Pola Ruang', data.rencanaPolaRuang)}
+                {/* Titik Koordinat */}
+                {renderField('Titik Koordinat', data.koordinat)}
 
-                {/* Koordinat */}
-                {renderField('Koordinat', data.koordinat)}
+                {/* Rawan Banjir */}
+                {renderField('Rawan Banjir', data.rawanBanjir)}
+
+                {/* Gerakan Tanah */}
+                {renderField('Gerakan Tanah', data.gerakanTanah)}
+
+                {/* Gempa Bumi */}
+                {renderField('Gempa Bumi', data.gempaBumi)}
+
+                {/* Data Lainnya */}
+                {renderField('Data Lainnya', data.dataLainnya)}
 
                 {/* Foto */}
                 <div className="mb-4">

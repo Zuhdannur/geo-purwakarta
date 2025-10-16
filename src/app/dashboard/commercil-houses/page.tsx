@@ -53,15 +53,17 @@ mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3d
 interface CommercialHouse {
   id: string;
   idSrk?: string;
-  kawasanPerumahan?: string;
+  namaPerumahan?: string;
   alamat?: string;
-  kecamatan?: string;
   kelurahanDesa?: string;
-  namaPengembang?: string;
+  kecamatan?: string;
+  namaPengembangan?: string;
   noIzin?: string;
-  penutupLahan?: string;
-  rawanBencana?: string;
-  rencanaPolaRuang?: string;
+  serahTerimaPsu?: string;
+  rawanBanjir?: string;
+  gerakanTanah?: string;
+  gempaBumi?: string;
+  dataLainnya?: string;
   koordinat?: string;
   geometry?: any; // GeoJSON geometry
   foto: string[];
@@ -433,16 +435,17 @@ export default function CommercialHousesPage() {
       // Prepare data for Excel
       const excelData = data.data.map((house: CommercialHouse) => ({
         'ID SRK': house.idSrk || '',
-        'Kawasan Perumahan': house.kawasanPerumahan || '',
+        'Nama Perumahan': house.namaPerumahan || '',
         'Alamat': house.alamat || '',
-        'Kecamatan': house.kecamatan || '',
         'Kelurahan/Desa': house.kelurahanDesa || '',
-        'Nama Pengembang': house.namaPengembang || '',
+        'Kecamatan': house.kecamatan || '',
+        'Nama Pengembangan': house.namaPengembangan || '',
         'No. Izin': house.noIzin || '',
-        'Penutup Lahan': house.penutupLahan || '',
-        'Rawan Bencana': house.rawanBencana || '',
-        'Rencana Pola Ruang': house.rencanaPolaRuang || '',
-        'Koordinat': house.koordinat || '',
+        'Serah Terima PSU': house.serahTerimaPsu || '',
+        'Rawan Banjir': house.rawanBanjir || '',
+        'Gerakan Tanah': house.gerakanTanah || '',
+        'Gempa Bumi': house.gempaBumi || '',
+        'Data Lainnya': house.dataLainnya || '',
         'Jumlah Foto': house.foto?.length || 0,
         'Tanggal Dibuat': new Date(house.createdAt).toLocaleString('id-ID'),
         'Terakhir Diupdate': new Date(house.updatedAt).toLocaleString('id-ID'),
@@ -455,16 +458,17 @@ export default function CommercialHousesPage() {
       // Set column widths
       const columnWidths = [
         { wch: 15 }, // ID SRK
-        { wch: 25 }, // Kawasan Perumahan
+        { wch: 25 }, // Nama Perumahan
         { wch: 35 }, // Alamat
-        { wch: 20 }, // Kecamatan
         { wch: 20 }, // Kelurahan/Desa
-        { wch: 25 }, // Nama Pengembang
+        { wch: 20 }, // Kecamatan
+        { wch: 25 }, // Nama Pengembangan
         { wch: 20 }, // No. Izin
-        { wch: 20 }, // Penutup Lahan
-        { wch: 20 }, // Rawan Bencana
-        { wch: 25 }, // Rencana Pola Ruang
-        { wch: 20 }, // Koordinat
+        { wch: 20 }, // Serah Terima PSU
+        { wch: 18 }, // Rawan Banjir
+        { wch: 20 }, // Gerakan Tanah
+        { wch: 22 }, // Gempa Bumi
+        { wch: 25 }, // Data Lainnya
         { wch: 12 }, // Jumlah Foto
         { wch: 20 }, // Tanggal Dibuat
         { wch: 20 }, // Terakhir Diupdate
@@ -535,7 +539,7 @@ export default function CommercialHousesPage() {
       const geometrySet = new Set<string>();
       const features: any[] = [];
       
-      data.data.forEach((house: CommercialHouse, index: number) => {
+          data.data.forEach((house: CommercialHouse, index: number) => {
         if (house.geometry) {
           // Normalize geometry by keeping only type and coordinates
           const normalizedGeometry = {
@@ -546,16 +550,16 @@ export default function CommercialHousesPage() {
           geometrySet.add(geometryString);
           
           // Create GeoJSON feature
-          features.push({
+              features.push({
             type: 'Feature',
             geometry: house.geometry,
             properties: {
               id: house.id,
-              kawasanPerumahan: house.kawasanPerumahan,
+                  namaPerumahan: house.namaPerumahan,
               alamat: house.alamat,
               kecamatan: house.kecamatan,
               kelurahanDesa: house.kelurahanDesa,
-              namaPengembang: house.namaPengembang,
+                  namaPengembangan: house.namaPengembangan,
               isRegistered: true
             }
           });
@@ -564,7 +568,7 @@ export default function CommercialHousesPage() {
           if (index < 3) {
             console.log(`DB House ${index}:`, {
               id: house.id,
-              kawasan: house.kawasanPerumahan,
+              kawasan: house.namaPerumahan,
               hasGeometry: !!house.geometry,
               geometryType: house.geometry?.type
             });
@@ -1203,7 +1207,7 @@ export default function CommercialHousesPage() {
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-semibold flex items-center">
             <Building className="mr-2 h-5 w-5" />
-            Commercial Houses
+            Tabel Sebaran Rumah Komersil
           </h1>
           <div className="text-sm text-gray-500">
             {currentView === 'table' ? `${pagination.total} total` : `${mapData.length} layers loaded`}
@@ -1250,7 +1254,7 @@ export default function CommercialHousesPage() {
             <DialogTrigger asChild>
               <Button onClick={() => setEditingHouse(null)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Commercial House
+                Tambah Sebaran Rumah Komersil
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -1315,7 +1319,7 @@ export default function CommercialHousesPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Commercial Houses ({pagination.total} total)</CardTitle>
+                  <CardTitle>Tabel Sebaran Rumah Komersil ({pagination.total} total)</CardTitle>
                   <Button 
                     onClick={handleExportToExcel}
                     disabled={exporting || loading}
@@ -1348,11 +1352,11 @@ export default function CommercialHousesPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Address</TableHead>
-                          <TableHead>Kawasan</TableHead>
+                          <TableHead>Alamat</TableHead>
+                          <TableHead>Nama Perumahan</TableHead>
                           <TableHead>Kecamatan</TableHead>
-                          <TableHead>Developer</TableHead>
-                          <TableHead>Permit No.</TableHead>
+                          <TableHead>Nama Pengembangan</TableHead>
+                          <TableHead>No. Izin</TableHead>
                           <TableHead>Photos</TableHead>
                           <TableHead>Created</TableHead>
                           <TableHead className="w-[50px]">Actions</TableHead>
@@ -1370,8 +1374,8 @@ export default function CommercialHousesPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <span className="truncate max-w-[150px]" title={house.kawasanPerumahan}>
-                                {house.kawasanPerumahan || 'N/A'}
+                              <span className="truncate max-w-[150px]" title={house.namaPerumahan}>
+                                {house.namaPerumahan || 'N/A'}
                               </span>
                             </TableCell>
                             <TableCell>
@@ -1380,8 +1384,8 @@ export default function CommercialHousesPage() {
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Building className="h-4 w-4 text-gray-400" />
-                                <span className="truncate max-w-[150px]" title={house.namaPengembang}>
-                                  {house.namaPengembang || 'N/A'}
+                                <span className="truncate max-w-[150px]" title={house.namaPengembangan}>
+                                  {house.namaPengembangan || 'N/A'}
                                 </span>
                               </div>
                             </TableCell>

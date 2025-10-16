@@ -37,18 +37,20 @@ model Maps {
 model CommercialHouse {
   id               String   @id @default(uuid())
   idSrk            String?  @map("id_srk")
-  kawasanPerumahan String?  @map("kawasan_perumahan")
+  namaPerumahan    String?  @map("nama_perumahan")
   alamat           String?
-  kecamatan        String?
   kelurahanDesa    String?  @map("kelurahan_desa")
-  namaPengembang   String?  @map("nama_pengembang")
+  kecamatan        String?
+  namaPengembangan String?  @map("nama_pengembangan")
   noIzin           String?  @map("no_izin")
-  penutupLahan     String?  @map("penutup_lahan")
-  rawanBencana     String?  @map("rawan_bencana")
-  rencanaPolaRuang String?  @map("rencana_pola_ruang")
-  koordinat        String?  // Store as JSON string or coordinate pair
-  geometry         Json?    // Store GeoJSON geometry to connect with map features
-  foto             String[] // Array of photo URLs/paths
+  koordinat        String?
+  serahTerimaPsu   String?  @map("serah_terima_psu")
+  rawanBanjir      String?  @map("rawan_banjir")
+  gerakanTanah     String?  @map("gerakan_tanah")
+  gempaBumi        String?  @map("gempa_bumi")
+  dataLainnya      String?  @map("data_lainnya")
+  geometry         Json?
+  foto             String[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

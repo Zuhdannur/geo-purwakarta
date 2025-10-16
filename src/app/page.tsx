@@ -1337,12 +1337,7 @@ export default function HomePage() {
               {layers.map((layer) => {
                 const layerId = `map-layer-${layer.id}`;
                 const isVisible = visibleLayers.has(layerId);
-                
-                // These layers are always visible (no toggle)
-                const alwaysVisible = layer.name.toLowerCase().includes('sebaran rumah komersil') || 
-                                     layer.name.toLowerCase().includes('peta administrasi') ||
-                                     layer.name.toLowerCase().includes('administrative');
-                
+
                 return (
                   <div key={layer.id} className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1350,19 +1345,15 @@ export default function HomePage() {
                         className="w-4 h-4 rounded border flex-shrink-0"
                         style={{ backgroundColor: layer.color || '#3388ff' }}
                       />
-                      <span className={`text-xs truncate ${alwaysVisible ? 'font-medium text-gray-700' : 'text-gray-600'}`}>
+                      <span className="text-xs truncate text-gray-600">
                         {layer.name}
                       </span>
                     </div>
-                    {!alwaysVisible ? (
-                      <Switch
-                        checked={isVisible}
-                        onCheckedChange={() => toggleLayerVisibility(layerId)}
-                        className="flex-shrink-0"
-                      />
-                    ) : (
-                      <span className="text-[9px] text-gray-400 flex-shrink-0 uppercase tracking-wide">Always On</span>
-                    )}
+                    <Switch
+                      checked={isVisible}
+                      onCheckedChange={() => toggleLayerVisibility(layerId)}
+                      className="flex-shrink-0"
+                    />
                   </div>
                 );
               })}

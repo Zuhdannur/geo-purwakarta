@@ -11,24 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch all commercial houses
-    const commercialHouses = await prisma.commercialHouse.findMany({
-      select: {
-        id: true,
-        idSrk: true,
-        kawasanPerumahan: true,
-        alamat: true,
-        kecamatan: true,
-        kelurahanDesa: true,
-        penutupLahan: true,
-        rawanBencana: true,
-        rencanaPolaRuang: true,
-        koordinat: true,
-        geometry: true,
-        foto: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    })
+    const commercialHouses = await prisma.commercialHouse.findMany()
 
     // Find matching commercial house by geometry
     // We'll use a simple JSON string comparison for exact matches

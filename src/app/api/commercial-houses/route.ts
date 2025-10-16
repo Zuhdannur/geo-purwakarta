@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { alamat: { contains: search, mode: 'insensitive' } },
-        { kawasanPerumahan: { contains: search, mode: 'insensitive' } },
-        { namaPengembang: { contains: search, mode: 'insensitive' } },
+        { namaPerumahan: { contains: search, mode: 'insensitive' } },
+        { namaPengembangan: { contains: search, mode: 'insensitive' } },
         { noIzin: { contains: search, mode: 'insensitive' } },
       ];
     }
@@ -63,16 +63,18 @@ export async function POST(request: NextRequest) {
     
     const {
       idSrk,
-      kawasanPerumahan,
+      namaPerumahan,
       alamat,
-      kecamatan,
       kelurahanDesa,
-      namaPengembang,
+      kecamatan,
+      namaPengembangan,
       noIzin,
-      penutupLahan,
-      rawanBencana,
-      rencanaPolaRuang,
       koordinat,
+      serahTerimaPsu,
+      rawanBanjir,
+      gerakanTanah,
+      gempaBumi,
+      dataLainnya,
       geometry,
       foto = [],
     } = body;
@@ -80,16 +82,18 @@ export async function POST(request: NextRequest) {
     const commercialHouse = await prisma.commercialHouse.create({
       data: {
         idSrk,
-        kawasanPerumahan,
+        namaPerumahan,
         alamat,
-        kecamatan,
         kelurahanDesa,
-        namaPengembang,
+        kecamatan,
+        namaPengembangan,
         noIzin,
-        penutupLahan,
-        rawanBencana,
-        rencanaPolaRuang,
         koordinat,
+        serahTerimaPsu,
+        rawanBanjir,
+        gerakanTanah,
+        gempaBumi,
+        dataLainnya,
         geometry,
         foto,
       },

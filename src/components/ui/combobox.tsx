@@ -60,6 +60,7 @@ export function Combobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -87,17 +88,15 @@ export function Combobox({
               {options.map((option, index) => (
                 <CommandItem
                   key={`${option.value}-${index}`}
-                  value={`${option.label}__${index}`}
+                  value={option.value}
                   keywords={[option.label, option.value]}
+                  onPointerDown={() => {
+                    onValueChange?.(option.value)
+                    setOpen(false)
+                  }}
                   onSelect={(selected) => {
-                    // Extract index from the selected value
-                    const parts = selected.split('__')
-                    const idx = parseInt(parts[parts.length - 1])
-                    if (!isNaN(idx) && options[idx]) {
-                      // Simply select the clicked option without toggling
-                      onValueChange?.(options[idx].value)
-                      setOpen(false)
-                    }
+                    onValueChange?.(selected)
+                    setOpen(false)
                   }}
                   disabled={option.disabled}
                   className={cn(
@@ -168,6 +167,7 @@ export function MultiCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -197,18 +197,19 @@ export function MultiCombobox({
                 return (
                   <CommandItem
                     key={`${option.value}-${index}`}
-                    value={`${option.label}__${index}`}
+                    value={option.value}
                     keywords={[option.label, option.value]}
+                    onPointerDown={() => {
+                      const newValues = values.includes(option.value)
+                        ? values.filter((value) => value !== option.value)
+                        : [...values, option.value]
+                      onValuesChange?.(newValues)
+                    }}
                     onSelect={(selected) => {
-                      // Extract index from the selected value
-                      const parts = selected.split('__')
-                      const idx = parseInt(parts[parts.length - 1])
-                      if (!isNaN(idx) && options[idx]) {
-                        const newValues = values.includes(options[idx].value)
-                          ? values.filter((value) => value !== options[idx].value)
-                          : [...values, options[idx].value]
-                        onValuesChange?.(newValues)
-                      }
+                      const newValues = values.includes(selected)
+                        ? values.filter((value) => value !== selected)
+                        : [...values, selected]
+                      onValuesChange?.(newValues)
                     }}
                     disabled={option.disabled}
                     className={cn(
