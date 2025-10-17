@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   const maps = await prisma.maps.findMany({
-    select: { id: true, name: true, geojson: true, color: true, sortOrder: true, createdAt: true, updatedAt: true },
+    select: { id: true, name: true, geojson: true, color: true, warna: true, sortOrder: true, createdAt: true, updatedAt: true },
     orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
   })
   return NextResponse.json(maps)
@@ -12,7 +12,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, geojson, color } = body || {}
+    const { name, geojson, color, warna } = body || {}
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'name is required' }, { status: 400 })
@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
         name, 
         geojson, 
         sortOrder: nextSortOrder,
-        ...(color && { color }) // Include color if provided, otherwise use default
+        ...(color && { color }), // Include color if provided, otherwise use default
+        ...(warna && { warna }) // Include warna if provided
       },
-      select: { id: true, name: true, color: true, createdAt: true, updatedAt: true },
+      select: { id: true, name: true, color: true, warna: true, createdAt: true, updatedAt: true },
     })
     return NextResponse.json(created, { status: 201 })
   } catch (error) {

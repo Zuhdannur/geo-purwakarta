@@ -17,6 +17,7 @@ const layerConfigs = {
   'layer-administrasi': {
     name: 'Layer Administrasi',
     colorBy: 'WADMKC',
+    warna: 'warna', // Property name for feature-specific colors
     colorScheme: {
       'Purwakarta': { fill: '#FF6B6B', outline: '#CC5555' },
       'Plered': { fill: '#4ECDC4', outline: '#3EA89F' },

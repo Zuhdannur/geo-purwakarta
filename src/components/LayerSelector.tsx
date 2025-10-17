@@ -26,6 +26,7 @@ export default function LayerSelector({
     'layer-administrasi': {
       name: 'Layer Administrasi (6.4MB)',
       color: '#4a90e2',
+      warna: 'warna', // Property name for feature-specific colors
       description: 'Administrative boundaries'
     }
   };

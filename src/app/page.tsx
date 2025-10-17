@@ -20,6 +20,7 @@ interface MapLayer {
   name: string;
   geojson: any;
   color: string;
+  warna?: string; // Feature-specific color property
   sortOrder: number;
 }
 
@@ -298,7 +299,12 @@ export default function HomePage() {
               type: 'fill',
               source: sourceId,
               paint: {
-                'fill-color': color,
+                'fill-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use warna from feature
+                  color // Fallback to default layer color
+                ],
                 'fill-opacity': 0.3
               },
               filter: createFilter()
@@ -311,7 +317,12 @@ export default function HomePage() {
               type: 'line',
               source: sourceId,
               paint: {
-                'line-color': outlineColor,
+                'line-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use warna from feature
+                  outlineColor // Fallback to default outline color
+                ],
                 'line-width': 1
               },
               filter: createFilter()
@@ -326,7 +337,12 @@ export default function HomePage() {
               type: 'fill',
               source: sourceId,
               paint: {
-                'fill-color': darkenColor(color, 0.5),
+                'fill-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use the same warna color for hover
+                  darkenColor(color, 0.5) // Fallback to darkened default color
+                ],
                 'fill-opacity': 0.6
               },
               filter: ['==', ['get', '_featureId'], '']
@@ -341,7 +357,12 @@ export default function HomePage() {
               type: 'line',
               source: sourceId,
               paint: {
-                'line-color': darkenColor(outlineColor, 0.3),
+                'line-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use the same warna color for hover outline
+                  darkenColor(outlineColor, 0.3) // Fallback to darkened default outline color
+                ],
                 'line-width': 2
               },
               filter: ['==', ['get', '_featureId'], '']
@@ -374,7 +395,12 @@ export default function HomePage() {
               type: 'line',
               source: sourceId,
               paint: {
-                'line-color': color,
+                'line-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use warna from feature
+                  color // Fallback to default layer color
+                ],
                 'line-width': 2
               },
               filter: createFilter()
@@ -389,7 +415,12 @@ export default function HomePage() {
               type: 'line',
               source: sourceId,
               paint: {
-                'line-color': darkenColor(color, 0.5),
+                'line-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use the same warna color for hover
+                  darkenColor(color, 0.5) // Fallback to darkened default color
+                ],
                 'line-width': 4
               },
               filter: ['==', ['get', '_featureId'], '']
@@ -423,9 +454,19 @@ export default function HomePage() {
               source: sourceId,
               paint: {
                 'circle-radius': 6,
-                'circle-color': color,
+                'circle-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use warna from feature
+                  color // Fallback to default layer color
+                ],
                 'circle-stroke-width': 2,
-                'circle-stroke-color': outlineColor
+                'circle-stroke-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use warna from feature
+                  outlineColor // Fallback to default outline color
+                ]
               },
               filter: createFilter()
             });
@@ -440,9 +481,19 @@ export default function HomePage() {
               source: sourceId,
               paint: {
                 'circle-radius': 8,
-                'circle-color': darkenColor(color, 0.5),
+                'circle-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use the same warna color for hover
+                  darkenColor(color, 0.5) // Fallback to darkened default color
+                ],
                 'circle-stroke-width': 3,
-                'circle-stroke-color': darkenColor(outlineColor, 0.3)
+                'circle-stroke-color': [
+                  'case',
+                  ['has', layer.warna || 'warna'], // Check if feature has warna property
+                  ['get', layer.warna || 'warna'], // Use the same warna color for hover outline
+                  darkenColor(outlineColor, 0.3) // Fallback to darkened default outline color
+                ]
               },
               filter: ['==', ['get', '_featureId'], '']
             });
