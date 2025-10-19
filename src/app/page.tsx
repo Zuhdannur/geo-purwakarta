@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Combobox } from '@/components/ui/combobox';
 import type { ComboboxOption } from '@/components/ui/combobox';
 import CommercialHouseModal from '@/components/CommercialHouseModal';
+import PropertyPopup from '@/components/PropertyPopup';
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -159,15 +161,12 @@ export default function HomePage() {
             properties: {
               id: house.id,
               idSrk: house.idSrk,
-              kawasanPerumahan: house.kawasanPerumahan,
+              namaPerumahan: house.namaPerumahan,
               alamat: house.alamat,
               kecamatan: house.kecamatan,
               kelurahanDesa: house.kelurahanDesa,
-              namaPengembang: house.namaPengembang,
+              namaPengembangan: house.namaPengembangan,
               noIzin: house.noIzin,
-              penutupLahan: house.penutupLahan,
-              rawanBencana: house.rawanBencana,
-              rencanaPolaRuang: house.rencanaPolaRuang,
               koordinat: house.koordinat,
               _featureId: house.id
             }
@@ -179,7 +178,6 @@ export default function HomePage() {
         };
 
         setRegisteredHouses(geojson);
-        console.log('Loaded registered houses:', features.length);
       } catch (error) {
         console.error('Error fetching registered commercial houses:', error);
       }
@@ -202,7 +200,6 @@ export default function HomePage() {
 
     map.current.on('load', () => {
       setMapReady(true);
-      console.log('Map loaded');
     });
 
     // Add navigation controls
@@ -554,19 +551,26 @@ export default function HomePage() {
                 });
               }
             } else {
-              // For other layers, show regular popup
-              let popupContent = `<div class="font-bold mb-2">${layer.name}</div>`;
-              popupContent += '<div class="text-sm">';
-              Object.entries(properties).forEach(([key, value]) => {
-                if (key !== 'geometry' && key !== '_featureId') {
-                  popupContent += `<div><strong>${key}:</strong> ${value}</div>`;
-                }
-              });
-              popupContent += '</div>';
+              // For other layers, show regular popup with table
+              const popupElement = document.createElement('div');
+              const root = createRoot(popupElement);
+              
+              root.render(
+                <PropertyPopup 
+                  layerName={layer.name} 
+                  properties={properties} 
+                />
+              );
 
-              new mapboxgl.Popup()
+              new mapboxgl.Popup({
+                maxWidth: 'none',
+                className: 'custom-popup',
+                closeButton: true,
+                closeOnClick: false,
+                closeOnMove: false
+              })
                 .setLngLat(e.lngLat)
-                .setHTML(popupContent)
+                .setDOMContent(popupElement)
                 .addTo(map.current!);
             }
           }
@@ -835,10 +839,10 @@ export default function HomePage() {
         features: registeredHouses.features.map((feature: any) => {
           const center = getPolygonCenter(feature.geometry.coordinates);
           if (center) {
-            const namaPengembang = feature.properties.namaPengembang || feature.properties.namaDeveloper || 'Unknown Developer';
-            const kawasan = feature.properties.kawasanPerumahan || '';
+            const namaPengembangan = feature.properties.namaPengembangan || 'Unknown Developer';
+            const namaPerumahan = feature.properties.namaPerumahan || '';
             // Show developer name prominently
-            const combinedLabel = kawasan ? `${namaPengembang}\n${kawasan}` : namaPengembang;
+            const combinedLabel = namaPerumahan ? `${namaPengembangan}\n${namaPerumahan}` : namaPengembangan;
             
             return {
               type: 'Feature',
@@ -886,11 +890,9 @@ export default function HomePage() {
       setTimeout(() => {
         if (map.current && map.current.getLayer(labelLayerId)) {
           map.current.moveLayer(labelLayerId);
-          console.log('✅ Moved registered houses labels to top of layer stack');
         }
       }, 100);
 
-      console.log('✅ Added labels for', labelData.features.length, 'registered houses');
 
       // Add click handler
       map.current.on('click', layerId, async (e) => {
@@ -957,7 +959,6 @@ export default function HomePage() {
         map.current!.setFilter(hoverOutlineLayerId, ['==', ['get', '_featureId'], '']);
       });
 
-      console.log('Registered commercial houses layer loaded successfully');
     } catch (error) {
       console.error('Error loading registered commercial houses layer:', error);
     }

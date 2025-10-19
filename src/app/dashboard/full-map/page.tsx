@@ -79,18 +79,15 @@ export default function FullMapPage() {
   const loadMapData = async () => {
     try {
       setLoading(true);
-      console.log('Loading map data from API...');
       const response = await fetch('/api/maps', { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to load map data');
       const data = await response.json();
-      console.log('Map data loaded:', data);
       setMapData(data);
       
       // Auto-select all layers
       const allLayerIds = data.map((map: MapData) => {
         return `layer-${map.name.toLowerCase().replace(/\s+/g, '-')}`;
       });
-      console.log('Auto-selected layers:', allLayerIds);
       setSelectedLayers(allLayerIds);
     } catch (err: any) {
       console.error('Error loading map data:', err);
@@ -108,7 +105,6 @@ export default function FullMapPage() {
   useEffect(() => {
     if (map.current) return;
 
-    console.log('Initializing map...');
     if (mapContainer.current) {
       try {
         map.current = new mapboxgl.Map({
@@ -123,7 +119,6 @@ export default function FullMapPage() {
 
         map.current.on('load', () => {
           setMapReady(true);
-          console.log('Map loaded successfully');
         });
 
         map.current.on('error', (e) => {
@@ -132,7 +127,6 @@ export default function FullMapPage() {
 
         // Add navigation controls
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-        console.log('Map initialized successfully');
       } catch (error) {
         console.error('Error initializing map:', error);
         setError('Failed to initialize map');
@@ -141,7 +135,6 @@ export default function FullMapPage() {
 
     return () => {
       if (map.current) {
-        console.log('Cleaning up map...');
         map.current.remove();
         map.current = null;
       }
@@ -433,22 +426,16 @@ export default function FullMapPage() {
   // Load a single layer
   const loadLayer = useCallback((layerId: string, geojsonData: any, config: LayerConfig, order: number) => {
     if (!map.current) {
-      console.log('Map not ready, skipping layer:', layerId);
       return;
     }
 
     try {
-      console.log(`Loading layer: ${layerId} with order: ${order}`);
-      console.log('GeoJSON data:', geojsonData);
-      console.log('Config:', config);
       
       // Add source
       if (map.current.getSource(layerId)) {
-        console.log(`Removing existing source: ${layerId}`);
         map.current.removeSource(layerId);
       }
       
-      console.log(`Adding source: ${layerId}`);
       map.current.addSource(layerId, {
         type: 'geojson',
         data: geojsonData
@@ -540,7 +527,6 @@ export default function FullMapPage() {
             map.current!.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
             map.current!.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
             
-            console.log('Feature clicked:', feature.properties);
           }
         }
       });
@@ -554,7 +540,6 @@ export default function FullMapPage() {
         map.current!.getCanvas().style.cursor = '';
       });
 
-      console.log(`Layer ${layerId} loaded successfully`);
     } catch (error) {
       console.error(`Error loading layer ${layerId}:`, error);
     }
@@ -564,9 +549,6 @@ export default function FullMapPage() {
   useEffect(() => {
     if (!mapReady || !map.current || mapData.length === 0) return;
 
-    console.log('Loading layers for full map...');
-    console.log('Map data:', mapData);
-    console.log('Selected layers:', selectedLayers);
 
     // Sort map data by sortOrder
     const sortedMapData = [...mapData].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -577,10 +559,8 @@ export default function FullMapPage() {
       const config = layerConfigs[layerId];
       
       if (config && mapItem.geojson) {
-        console.log(`Loading layer: ${layerId} (${mapItem.name})`);
         loadLayer(layerId, mapItem.geojson, config, index + 1);
       } else {
-        console.log(`No config found for layer: ${layerId} (${mapItem.name})`);
       }
     });
   }, [mapReady, mapData, selectedLayers, loadLayer]);

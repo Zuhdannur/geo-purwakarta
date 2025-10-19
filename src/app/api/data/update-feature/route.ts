@@ -10,7 +10,7 @@ const redis = createClient({
 });
 
 // Connect to Redis
-redis.on('error', (err) => console.log('Redis Client Error', err));
+redis.on('error', (err) => {});
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,13 +23,7 @@ export async function POST(request: NextRequest) {
     const { featureId, layerId, properties } = body;
 
     // Debug logging
-    console.log('API Update Feature Debug:', {
-      receivedFeatureId: featureId,
-      receivedLayerId: layerId,
-      propertiesKeys: Object.keys(properties || {}),
-      featureIdType: typeof featureId,
-      featureIdValue: featureId
-    });
+  
 
     if (!featureId || !layerId || !properties) {
       return NextResponse.json(
@@ -107,25 +101,15 @@ export async function POST(request: NextRequest) {
       
       if (matches.some(match => match)) {
         featureIndex = i;
-        console.log(`Feature found at index ${i}:`, {
-          featureProps: props,
-          matchingId: featureId,
-          matchType: matches.findIndex(match => match),
-          feature_id: props.feature_id
-        });
         break;
       }
     }
     
     // If still not found, try to find by index (featureId might be the array index)
     if (featureIndex === -1 && featureId >= 0 && featureId < (geoJsonData as any).features.length) {
-      console.log(`Trying to find feature by index: ${featureId}`);
       const featureByIndex = (geoJsonData as any).features[featureId];
       if (featureByIndex) {
         featureIndex = featureId;
-        console.log(`Feature found by index ${featureId}:`, {
-          featureProps: featureByIndex.properties
-        });
       }
     }
 

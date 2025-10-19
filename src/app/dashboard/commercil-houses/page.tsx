@@ -271,7 +271,6 @@ export default function CommercialHousesPage() {
         }
       });
 
-      console.log('Map cleanup completed');
     } catch (error) {
       console.error('Error during map cleanup:', error);
     }
@@ -288,7 +287,6 @@ export default function CommercialHousesPage() {
   useEffect(() => {
     if (currentView !== 'map' || map.current) return;
 
-    console.log('Initializing map...');
     if (mapContainer.current) {
       try {
         map.current = new mapboxgl.Map({
@@ -303,7 +301,6 @@ export default function CommercialHousesPage() {
 
         map.current.on('load', () => {
           setMapReady(true);
-          console.log('Map loaded successfully');
         });
 
         map.current.on('error', (_e: any) => {
@@ -313,7 +310,6 @@ export default function CommercialHousesPage() {
 
         // Add navigation controls
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-        console.log('Map initialized successfully');
       } catch (error) {
         console.error('Error initializing map:', error);
         setMapError('Failed to initialize map');
@@ -322,7 +318,6 @@ export default function CommercialHousesPage() {
 
     return () => {
       if (map.current) {
-        console.log('Cleaning up map...');
         cleanupMap();
         map.current.remove();
         map.current = null;
@@ -408,9 +403,7 @@ export default function CommercialHousesPage() {
     
     // Reload registered geometries and update the green layer if in map view
     if (currentView === 'map') {
-      console.log('Form submitted in map view, updating registered houses layer...');
       await loadRegisteredGeometries(); // This will trigger the useEffect to reload the green layer
-      console.log('✅ Registered houses layer will be updated');
     }
   };
 
@@ -485,7 +478,6 @@ export default function CommercialHousesPage() {
       // Save file
       XLSX.writeFile(wb, filename);
       
-      console.log(`Exported ${excelData.length} records to ${filename}`);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       alert('Failed to export data');
@@ -498,23 +490,19 @@ export default function CommercialHousesPage() {
   const loadMapData = async () => {
     try {
       setMapLoading(true);
-      console.log('Loading map data from API...');
       
       // Load registered geometries FIRST before loading map data
-      console.log('Loading registered geometries first...');
       await loadRegisteredGeometries();
       
       const response = await fetch('/api/maps', { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to load map data');
       const data = await response.json();
-      console.log('Map data loaded:', data);
       setMapData(data);
       
       // Auto-select all layers
       const allLayerIds = data.map((map: MapData) => {
         return `layer-${map.name.toLowerCase().replace(/\s+/g, '-')}`;
       });
-      console.log('Auto-selected layers:', allLayerIds);
       setSelectedLayers(allLayerIds);
       
       // Initialize all layers as visible
@@ -534,7 +522,6 @@ export default function CommercialHousesPage() {
       if (!response.ok) throw new Error('Failed to load commercial houses');
       const data = await response.json();
       
-      console.log('📊 Commercial houses from DB:', data.data.length);
       
       const geometrySet = new Set<string>();
       const features: any[] = [];
@@ -566,7 +553,6 @@ export default function CommercialHousesPage() {
           
           // Log details of first few
           if (index < 3) {
-            console.log(`DB House ${index}:`, {
               id: house.id,
               kawasan: house.namaPerumahan,
               hasGeometry: !!house.geometry,
@@ -582,7 +568,6 @@ export default function CommercialHousesPage() {
         features: features
       };
       
-      console.log('✅ Created GeoJSON with', features.length, 'registered houses');
       setRegisteredHousesGeoJSON(geoJSON);
       setRegisteredGeometries(geometrySet);
       return geometrySet;
@@ -896,24 +881,18 @@ export default function CommercialHousesPage() {
   // Load a single layer
   const loadLayer = useCallback((layerId: string, geojsonData: any, config: LayerConfig, order: number) => {
     if (!map.current) {
-      console.log('Map not ready, skipping layer:', layerId);
       return;
     }
 
     try {
-      console.log(`Loading layer: ${layerId} with order: ${order}`);
-      console.log('GeoJSON data:', geojsonData);
-      console.log('Config:', config);
       
       // Add source
       if (map.current.getSource(layerId)) {
-        console.log(`Updating existing source: ${layerId}`);
         const source = map.current.getSource(layerId) as mapboxgl.GeoJSONSource;
         if (source.setData) {
           source.setData(geojsonData);
         }
       } else {
-        console.log(`Adding new source: ${layerId}`);
         map.current.addSource(layerId, {
           type: 'geojson',
           data: geojsonData
@@ -1013,7 +992,6 @@ export default function CommercialHousesPage() {
               map.current!.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
               map.current!.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
               
-              console.log('Feature clicked:', feature.properties);
               
               // If it's the registered houses layer, open in edit mode directly
               if (layerId === 'layer-registered-houses') {
@@ -1022,7 +1000,6 @@ export default function CommercialHousesPage() {
                   // Fetch the full house data
                   const house = commercialHouses.find(h => h.id === houseId);
                   if (house) {
-                    console.log('Opening registered house for edit:', house);
                     setEditingHouse(house);
                     setClickedFeatureGeometry(null);
                     setIsFormOpen(true);
@@ -1049,12 +1026,10 @@ export default function CommercialHousesPage() {
                 
                 if (existingHouse) {
                   // Open in edit mode
-                  console.log('Opening existing house for edit:', existingHouse);
                   setEditingHouse(existingHouse);
                   setClickedFeatureGeometry(null);
                 } else {
                   // Open in create mode
-                  console.log('Opening form for new house');
                   setClickedFeatureGeometry(feature.geometry);
                   setEditingHouse(null);
                 }
@@ -1076,7 +1051,6 @@ export default function CommercialHousesPage() {
         });
       }
 
-      console.log(`Layer ${layerId} loaded successfully`);
     } catch (error) {
       console.error(`Error loading layer ${layerId}:`, error);
     }
@@ -1142,10 +1116,6 @@ export default function CommercialHousesPage() {
   useEffect(() => {
     if (currentView !== 'map' || !mapReady || !map.current || mapData.length === 0) return;
 
-    console.log('Loading layers for commercial houses map...');
-    console.log('Map data:', mapData);
-    console.log('Selected layers:', selectedLayers);
-    console.log('Registered geometries count:', registeredGeometries.size);
 
     // Sort map data by sortOrder
     const sortedMapData = [...mapData].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -1163,10 +1133,8 @@ export default function CommercialHousesPage() {
       };
       
       if (mapItem.geojson) {
-        console.log(`Loading layer: ${layerId} (${mapItem.name}) with color: ${config.color}`);
         loadLayer(layerId, mapItem.geojson, config, index + 1);
       } else {
-        console.log(`No GeoJSON found for layer: ${layerId} (${mapItem.name})`);
       }
     });
   }, [currentView, mapReady, mapData, selectedLayers, loadLayer, registeredGeometries, darkenColor]);
@@ -1175,7 +1143,6 @@ export default function CommercialHousesPage() {
   useEffect(() => {
     if (currentView !== 'map' || !mapReady || !map.current || !registeredHousesGeoJSON) return;
 
-    console.log('Loading registered houses layer...');
     const layerId = 'layer-registered-houses';
     const config = layerConfigs[layerId];
     

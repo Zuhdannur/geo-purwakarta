@@ -13,7 +13,6 @@ export async function GET() {
       }
     })
 
-    console.log(map);
 
     if (!map) {
       return NextResponse.json({ error: 'Peta Administrasi not found' }, { status: 404 })

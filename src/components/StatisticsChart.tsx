@@ -85,7 +85,6 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
       
       // Extract kecamatan boundaries from admin data
       if (adminData.features) {
-        console.log('Debug - Admin features found:', adminData.features.length);
         adminData.features.forEach((feature: any, index: number) => {
           if (feature.properties && feature.properties.KECAMATAN && feature.geometry) {
             const kecamatanName = feature.properties.KECAMATAN;
@@ -93,7 +92,6 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
             
             // Debug: Log first few admin features
             if (index < 3) {
-              console.log(`Debug - Admin feature ${index}:`, {
                 kecamatan: kecamatanName,
                 properties: feature.properties
               });
@@ -110,9 +108,7 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
             }
           }
         });
-        console.log('Debug - Total kecamatan boundaries created:', kecamatanBoundaries.size);
       } else {
-        console.log('Debug - No admin features found');
       }
 
       // Group data by kecamatan and year
@@ -121,13 +117,11 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
       
       // Process rumah komersil features first to collect years and kecamatan
       if (rumahKomersilData.features) {
-        console.log('Debug - Processing features, total count:', rumahKomersilData.features.length);
         
         rumahKomersilData.features.forEach((feature: any, index: number) => {
           if (feature.geometry && feature.geometry.type === 'Polygon') {
             // Debug: Log first few features to see their properties
             if (index < 3) {
-              console.log(`Debug - Feature ${index} properties:`, feature.properties);
             }
             
             // Get the year from feature properties
@@ -139,7 +133,6 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
             
             // Debug: Log kecamatan detection
             if (index < 3) {
-              console.log(`Debug - Feature ${index} kecamatan detection:`, {
                 fromProperties: feature.properties?.KECAMATAN || feature.properties?.kecamatan,
                 finalKecamatan: kecamatanName
               });
@@ -177,24 +170,17 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
                 kecamatanYearMap.set(String(tahun), currentCount + 1);
               }
             } else {
-              console.log(`Debug - Feature ${index} has no kecamatan assigned`);
             }
           }
         });
       }
 
       // Debug: Log what we found
-      console.log('Debug - Features processed:', rumahKomersilData.features?.length || 0);
-      console.log('Debug - Kecamatan names from admin:', Array.from(kecamatanNames));
-      console.log('Debug - Kecamatan names from features:', Array.from(groupedData.keys()));
 
       // Convert to chart data format for grouped bar chart
       const sortedYears = Array.from(allYears).sort();
       
       // Debug logging
-      console.log('Debug - All Years found:', Array.from(allYears));
-      console.log('Debug - Grouped Data:', groupedData);
-      console.log('Debug - Sorted Years:', sortedYears);
       
       const chartDataArray: GroupedData[] = Array.from(groupedData.entries())
         .map(([kecamatan, yearMap]) => {
@@ -211,7 +197,6 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
           return totalB - totalA;
         });
 
-      console.log('Debug - Final Chart Data:', chartDataArray);
       setChartData(chartDataArray);
     } catch (error) {
       console.error('Error analyzing data:', error);

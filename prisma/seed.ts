@@ -19,7 +19,6 @@ async function main() {
     },
   });
 
-  console.log('Admin user created/updated:', adminUser);
 }
 
 main()

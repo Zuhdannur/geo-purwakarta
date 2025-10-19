@@ -38,7 +38,6 @@ export default function Sidebar({
   
   // Debug state changes
   useEffect(() => {
-    console.log('Sidebar - selectedLayers changed:', selectedLayers);
   }, [selectedLayers]);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['layer-administrasi', 'layer-selection']); // Default expanded
   const [showKecamatanDropdown, setShowKecamatanDropdown] = useState(false);
@@ -199,28 +198,21 @@ export default function Sidebar({
     // Reset kelurahan selection when kecamatan changes
     setSelectedKelurahan('All Kelurahan/Desa');
     setShowKecamatanDropdown(false);
-    console.log('Selected Kecamatan:', kecamatan);
   };
 
   const handleKelurahanSelect = (kelurahan: string) => {
     setSelectedKelurahan(kelurahan);
     setShowKelurahanDropdown(false);
-    console.log('Selected Kelurahan:', kelurahan);
   };
 
   const toggleLayer = (layerId: string) => {
-    console.log(`toggleLayer called for: ${layerId}`);
-    console.log('Current selectedLayers:', selectedLayers);
     
     if (selectedLayers.includes(layerId)) {
-      console.log(`Removing layer: ${layerId}`);
       setSelectedLayers(selectedLayers.filter(l => l !== layerId));
     } else {
-      console.log(`Adding layer: ${layerId}`);
       setSelectedLayers([...selectedLayers, layerId]);
     }
     
-    console.log('New selectedLayers will be:', selectedLayers.includes(layerId) 
       ? selectedLayers.filter(l => l !== layerId) 
       : [...selectedLayers, layerId]
     );
@@ -239,24 +231,18 @@ export default function Sidebar({
         {/* Test button for commercial buildings layer */}
         {/* <button
           onClick={() => {
-            console.log('Test button clicked - adding commercial buildings layer');
-            console.log('Current selectedLayers in Sidebar:', selectedLayers);
             
             if (!selectedLayers.includes('layer-sebaran-rumah-komersil')) {
               const newSelectedLayers = [...selectedLayers, 'layer-sebaran-rumah-komersil'];
-              console.log('Setting new selectedLayers:', newSelectedLayers);
               setSelectedLayers(newSelectedLayers);
             } else {
-              console.log('Commercial buildings layer already selected');
               // Force a re-render by toggling off and on
               const filteredLayers = selectedLayers.filter(l => l !== 'layer-sebaran-rumah-komersil');
-              console.log('Temporarily removing layer:', filteredLayers);
               setSelectedLayers(filteredLayers);
               
               // Add it back after a short delay
               setTimeout(() => {
                 const newLayers = [...filteredLayers, 'layer-sebaran-rumah-komersil'];
-                console.log('Adding layer back:', newLayers);
                 setSelectedLayers(newLayers);
               }, 100);
             }

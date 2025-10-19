@@ -84,7 +84,6 @@ export default function FeatureDrawer({
 
   const handleSave = async () => {
     if (!featureData || layerName !== 'Sebaran Rumah Komersil') {
-      console.log('Can only save commercial buildings data');
       return;
     }
 
@@ -103,7 +102,6 @@ export default function FeatureDrawer({
       };
       
       // Debug: Log the feature identification
-      console.log('Feature Save Debug:', {
         featureDataKeys: Object.keys(featureData),
         feature_id: featureData.feature_id,
         OBJECTID: featureData.OBJECTID,
@@ -135,7 +133,6 @@ export default function FeatureDrawer({
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Feature updated successfully:', result);
         setNotification({
           type: 'success',
           message: `Feature updated successfully!`
@@ -172,7 +169,6 @@ export default function FeatureDrawer({
 
   const handleSaveWithData = async (formData: EditableFields) => {
     if (!featureData || layerName !== 'Sebaran Rumah Komersil') {
-      console.log('Can only save commercial buildings data');
       return;
     }
 
@@ -191,7 +187,6 @@ export default function FeatureDrawer({
       };
       
       // Debug: Log the feature identification
-      console.log('Feature Save Debug (with form data):', {
         featureDataKeys: Object.keys(featureData),
         feature_id: featureData.feature_id,
         OBJECTID: featureData.OBJECTID,
@@ -224,7 +219,6 @@ export default function FeatureDrawer({
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Feature updated successfully:', result);
         setNotification({
           type: 'success',
           message: `Feature updated successfully!`
@@ -280,7 +274,6 @@ export default function FeatureDrawer({
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Properties reset successfully:', result);
         setNotification({
           type: 'success',
           message: `All properties reset successfully! ${result.totalFeatures} features updated.`
@@ -317,7 +310,6 @@ export default function FeatureDrawer({
   const isCommercialBuildings = layerName === 'Sebaran Rumah Komersil';
 
   // Debug logging
-  console.log('FeatureDrawer Debug:', {
     layerName,
     isCommercialBuildings,
     featureData: featureData ? 'exists' : 'null',

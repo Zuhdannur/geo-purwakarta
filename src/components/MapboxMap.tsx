@@ -92,7 +92,6 @@ export default function MapboxMap({
   
   // Debug state changes
   useEffect(() => {
-    console.log('MapboxMap - selectedLayers changed:', selectedLayers);
   }, [selectedLayers]);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -130,7 +129,6 @@ export default function MapboxMap({
       map.current.on('load', () => {
         setMapReady(true);
         mapReadyRef.current = true;
-        console.log('map loaded');
       });
 
       // Add navigation controls
@@ -152,7 +150,6 @@ export default function MapboxMap({
     // Define handleFeatureClick with current selectedLayers value
     const handleFeatureClick = (e: any) => {
       if (!map.current || !map.current.isStyleLoaded() || selectedLayers.length === 0) {
-        console.log('Map not ready or no layers selected');
         return;
       }
 
@@ -169,31 +166,21 @@ export default function MapboxMap({
           .filter(layerName => map.current!.getLayer(layerName));
 
         // Debug: Log available layers
-        console.log('Selected layers:', selectedLayers);
-        console.log('Available fill layers:', availableLayers);
-        console.log('All map layers:', map.current.getStyle().layers?.map(l => l.id) || []);
 
         // Enhanced debugging for commercial buildings layer
         if (selectedLayers.includes('layer-sebaran-rumah-komersil')) {
-          console.log('Commercial buildings layer is selected, checking for features...');
-          console.log('Query bbox:', bbox);
-          console.log('Available layers for query:', availableLayers);
           
           // Check if the commercial buildings fill layer exists
           const commercialFillLayer = 'layer-sebaran-rumah-komersil-fill';
           const commercialOutlineLayer = 'layer-sebaran-rumah-komersil-outline';
-          console.log('Commercial fill layer exists:', map.current.getLayer(commercialFillLayer));
-          console.log('Commercial outline layer exists:', map.current.getLayer(commercialOutlineLayer));
           
           // If the layer exists but wasn't found in availableLayers, add it manually
           if (map.current.getLayer(commercialFillLayer) && !availableLayers.includes(commercialFillLayer)) {
             availableLayers.push(commercialFillLayer);
-            console.log('Added commercial buildings layer to available layers');
           }
         }
 
         if (availableLayers.length === 0) {
-          console.log('No fill layers available for querying');
           return;
         }
 
@@ -204,18 +191,12 @@ export default function MapboxMap({
 
         // Fallback: if no features found in specific layers, try querying all layers
         if (selectedFeatures.length === 0) {
-          console.log('No features found in specific layers, trying all layers...');
           selectedFeatures = map.current.queryRenderedFeatures(bbox);
         }
 
         // Enhanced debugging for commercial buildings layer
         if (selectedLayers.includes('layer-sebaran-rumah-komersil')) {
-          console.log('Commercial buildings layer is selected, checking for features...');
-          console.log('Query bbox:', bbox);
-          console.log('Available layers for query:', availableLayers);
-          console.log('Features found:', selectedFeatures.length);
           if (selectedFeatures.length > 0) {
-            console.log('First feature properties:', selectedFeatures[0].properties);
           }
         }
 
@@ -259,8 +240,6 @@ export default function MapboxMap({
             if (layerId === 'layer-sebaran-rumah-komersil') {
               // For commercial buildings, use Id or create a unique identifier
               featureId = props.Id ?? props.id ?? clickedFeature.id ?? `commercial-${Date.now()}`;
-              console.log('Commercial building clicked - Properties:', props);
-              console.log('Feature ID:', featureId);
             } else {
               // For other layers, use existing logic
               const fallbackConcat = (props?.WADMKC || props?.WADMKD) ? `${props?.WADMKC || ''}-${props?.WADMKD || ''}` : null;
@@ -338,7 +317,6 @@ export default function MapboxMap({
         ensureLayerOrder(layerId, priority);
       });
 
-      console.log('All layers reordered successfully');
     } catch (error) {
       console.error('Error reordering all layers:', error);
     }
@@ -349,7 +327,6 @@ export default function MapboxMap({
     if (!map.current || !layers['layer-sebaran-rumah-komersil']) return;
 
     try {
-      console.log('Refreshing commercial buildings layer data...');
       
       // Fetch updated data from KV storage
       const response = await fetch('/api/data/get-rumah-komersil');
@@ -364,7 +341,6 @@ export default function MapboxMap({
       const source = map.current.getSource('layer-sebaran-rumah-komersil') as mapboxgl.GeoJSONSource;
       if (source && typeof source.setData === 'function') {
         source.setData(updatedData);
-        console.log('Commercial buildings layer data refreshed successfully');
       }
       
       // Also refresh the labels
@@ -401,7 +377,6 @@ export default function MapboxMap({
         };
         
         labelSource.setData(labelData);
-        console.log('Commercial buildings labels refreshed successfully');
       }
     } catch (error) {
       console.error('Error refreshing commercial buildings layer:', error);
@@ -603,11 +578,6 @@ export default function MapboxMap({
   useEffect(() => {
     if (!mapReady || !map.current) return;
 
-    console.log('Layer loading effect triggered');
-    console.log('Map ready:', mapReady);
-    console.log('Selected layers:', selectedLayers);
-    console.log('Current layers state:', layers);
-    console.log('Loading state:', loading);
 
             // Sort layers by priority to ensure proper loading order
         const sortedLayers = [...selectedLayers].sort((a, b) => {
@@ -627,19 +597,15 @@ export default function MapboxMap({
 
     // Load selected layers in priority order
     sortedLayers.forEach(layerId => {
-      console.log(`Processing layer: ${layerId}`);
       if (!layers[layerId] && !loading[layerId]) {
-        console.log(`Loading layer: ${layerId}`);
         loadLayer(layerId);
       } else {
-        console.log(`Layer ${layerId} already loaded or loading`);
       }
     });
 
     // Remove unselected layers
     Object.keys(layers).forEach(layerId => {
       if (!selectedLayers.includes(layerId)) {
-        console.log(`Removing layer: ${layerId}`);
         removeLayer(layerId);
       }
     });
@@ -777,14 +743,11 @@ export default function MapboxMap({
 
   // Load a single layer
   const loadLayer = useCallback(async (layerId: string) => {
-    console.log(`loadLayer called for: ${layerId}`);
     const config = layerConfigs[layerId];
     if (!config) {
-      console.log(`No config found for layer: ${layerId}`);
       return;
     }
 
-    console.log(`Loading layer config:`, config);
     setLoading(prev => ({ ...prev, [layerId]: true }));
 
     try {
@@ -1084,9 +1047,7 @@ export default function MapboxMap({
         
         // Add labels for commercial buildings layer
         if (layerId === 'layer-sebaran-rumah-komersil') {
-          console.log('About to add commercial building labels...');
           addCommercialBuildingLabels(layerId, data);
-          console.log('Finished adding commercial building labels');
         }
 
         // Note: Click events are handled globally in the map click handler
@@ -1102,9 +1063,6 @@ export default function MapboxMap({
 
         // Enhanced debugging for commercial buildings layer events
         if (layerId === 'layer-sebaran-rumah-komersil') {
-          console.log('Commercial buildings layer events bound');
-          console.log('Fill layer ID:', `${layerId}-fill`);
-          console.log('Layer exists:', map.current.getLayer(`${layerId}-fill`));
         }
 
         setLayers(prev => ({ ...prev, [layerId]: { source: layerId, config } }));
@@ -1178,16 +1136,12 @@ export default function MapboxMap({
           }
         } catch {
           // Layer might already be in the right position
-          console.log(`Layer ${layerId} already in position or couldn't be moved`);
         }
       });
 
-      console.log(`Layer ${layerId} positioned at order ${targetOrder}, position ${targetPosition}`);
-      console.log(`Layers ordered:`, layersToOrder);
       
       // Debug: Log current layer order
       const currentLayers = map.current.getStyle().layers || [];
-      console.log(`Current map layers order:`, currentLayers.map(l => l.id));
     } catch (error) {
       console.error(`Error ensuring layer order for ${layerId}:`, error);
     }
@@ -1323,8 +1277,6 @@ export default function MapboxMap({
   const addCommercialBuildingLabels = (layerId: string, data: any) => {
     if (!map.current) return;
 
-    console.log('Adding commercial building labels for layer:', layerId);
-    console.log('Data features count:', data.features?.length || 0);
 
     // Add label source for commercial buildings
     const labelData: GeoJSON.FeatureCollection = {
@@ -1341,7 +1293,6 @@ export default function MapboxMap({
           // Combine name and area with line break
           const combinedLabel = areaText ? `${labelText}\n${areaText}` : labelText;
           
-          console.log(`Feature ${index}: center=${center}, label="${labelText}", area=${areaText}`);
           
           return {
             type: 'Feature',
@@ -1355,27 +1306,23 @@ export default function MapboxMap({
             }
           } as GeoJSON.Feature;
         } else {
-          console.log(`Feature ${index}: could not calculate center`);
         }
         return null;
       }).filter(Boolean) as GeoJSON.Feature[]
     };
 
-    console.log('Label data created:', labelData.features.length, 'labels');
 
     const labelSourceId = `${layerId}-labels`;
     const existingLabelSource = map.current.getSource(labelSourceId) as mapboxgl.GeoJSONSource | undefined;
     if (existingLabelSource) {
       if (typeof existingLabelSource.setData === 'function') {
         existingLabelSource.setData(labelData as any);
-        console.log('Updated existing label source');
       }
     } else {
       map.current.addSource(labelSourceId, {
         type: 'geojson',
         data: labelData
       });
-      console.log('Created new label source:', labelSourceId);
     }
 
     // Add combined commercial building labels
@@ -1401,20 +1348,16 @@ export default function MapboxMap({
           'text-halo-width': 2
         }
       });
-      console.log('Created combined label layer:', labelLayerId);
       
       // Ensure the label layer is positioned above the fill layer
       try {
         const fillLayerId = `${layerId}-fill`;
         if (map.current.getLayer(fillLayerId)) {
           map.current.moveLayer(labelLayerId, fillLayerId);
-          console.log('Moved label layer above fill layer');
         }
       } catch {
-        console.log('Could not move label layer');
       }
     } else {
-      console.log('Label layer already exists:', labelLayerId);
     }
   };
 
@@ -1468,11 +1411,9 @@ export default function MapboxMap({
   // Helper to get the center of a polygon
   const getPolygonCenter = (coordinates: any) => {
     if (!coordinates || coordinates.length === 0) {
-      console.log('getPolygonCenter: No coordinates provided');
       return null;
     }
 
-    console.log('getPolygonCenter input:', {
       coordinatesLength: coordinates.length,
       firstPolygon: coordinates[0],
       firstPolygonLength: coordinates[0]?.length,
@@ -1505,11 +1446,9 @@ export default function MapboxMap({
     }
     
     if (!ring || ring.length < 3) {
-      console.log('getPolygonCenter: Invalid ring:', { ring, length: ring?.length });
       return null;
     }
 
-    console.log('getPolygonCenter: Processing ring with', ring.length, 'coordinates');
 
     // Calculate centroid using shoelace formula
     let area = 0;
@@ -1528,7 +1467,6 @@ export default function MapboxMap({
       
       if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
           !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
-        console.log('getPolygonCenter: Invalid coordinate values:', { coord1, coord2 });
         continue;
       }
 
@@ -1543,14 +1481,11 @@ export default function MapboxMap({
       centroidX /= (6 * area);
       centroidY /= (6 * area);
       
-      console.log('getPolygonCenter: Centroid calculated successfully:', [centroidX, centroidY]);
       return [centroidX, centroidY];
     } else {
-      console.log('getPolygonCenter: Area too small for centroid, trying bounding box...');
     }
 
     // Fallback to bounding box center if centroid calculation fails
-    console.log('getPolygonCenter: Trying bounding box fallback...');
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     let validCoords = 0;
 
@@ -1574,12 +1509,10 @@ export default function MapboxMap({
       const centerY = minY + (maxY - minY) / 2;
       
       if (!isNaN(centerX) && !isNaN(centerY) && isFinite(centerX) && isFinite(centerY)) {
-        console.log('getPolygonCenter: Bounding box center calculated:', [centerX, centerY]);
         return [centerX, centerY];
       }
     }
 
-    console.log('getPolygonCenter: All methods failed');
     return null;
   };
 

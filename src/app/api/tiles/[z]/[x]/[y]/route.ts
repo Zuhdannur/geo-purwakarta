@@ -6,7 +6,6 @@ export async function GET(
 ) {
   const { z, x, y } = await params;
   
-  console.log(`Requested tile: z=${z}, x=${x}, y=${y}`);
   
   // For this demo, we'll return a simple response
   // In a real implementation, you would extract tiles from the mbtiles file

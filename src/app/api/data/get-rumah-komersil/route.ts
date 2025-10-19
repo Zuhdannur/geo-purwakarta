@@ -12,7 +12,7 @@ const redis = createClient({
 });
 
 // Connect to Redis
-redis.on('error', (err) => console.log('Redis Client Error', err));
+redis.on('error', (err) => {});
 
 export async function GET() {
   try {

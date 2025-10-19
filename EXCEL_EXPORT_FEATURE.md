@@ -86,7 +86,6 @@ const handleExportToExcel = async () => {
     // Save file
     XLSX.writeFile(wb, filename);
     
-    console.log(`Exported ${excelData.length} records to ${filename}`);
   } catch (error) {
     console.error('Error exporting to Excel:', error);
     alert('Failed to export data');

@@ -54,12 +54,7 @@ export default function CommercialHouseModal({
             <DialogTitle className="text-xl font-bold">
               Data Rumah Komersil
             </DialogTitle>
-            <button
-              onClick={onClose}
-              className="rounded-full p-1 hover:bg-gray-100 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
+           
           </div>
         </DialogHeader>
 

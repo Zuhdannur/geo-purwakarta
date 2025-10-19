@@ -10,7 +10,6 @@ const redis = createClient({
 });
 
 // Connect to Redis
-redis.on('error', (err) => console.log('Redis Client Error', err));
 
 export async function POST() {
   try {
