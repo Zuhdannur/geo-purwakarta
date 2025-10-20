@@ -553,6 +553,7 @@ export default function CommercialHousesPage() {
           
           // Log details of first few
           if (index < 3) {
+            console.log({
               id: house.id,
               kawasan: house.namaPerumahan,
               hasGeometry: !!house.geometry,

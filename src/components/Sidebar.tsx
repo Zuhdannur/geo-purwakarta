@@ -213,8 +213,10 @@ export default function Sidebar({
       setSelectedLayers([...selectedLayers, layerId]);
     }
     
-      ? selectedLayers.filter(l => l !== layerId) 
-      : [...selectedLayers, layerId]
+    setSelectedLayers(
+      selectedLayers.includes(layerId)
+        ? selectedLayers.filter(l => l !== layerId) 
+        : [...selectedLayers, layerId]
     );
   };
 

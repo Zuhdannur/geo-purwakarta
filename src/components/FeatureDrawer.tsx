@@ -102,6 +102,7 @@ export default function FeatureDrawer({
       };
       
       // Debug: Log the feature identification
+      console.log({
         featureDataKeys: Object.keys(featureData),
         feature_id: featureData.feature_id,
         OBJECTID: featureData.OBJECTID,
@@ -187,6 +188,7 @@ export default function FeatureDrawer({
       };
       
       // Debug: Log the feature identification
+      console.log({
         featureDataKeys: Object.keys(featureData),
         feature_id: featureData.feature_id,
         OBJECTID: featureData.OBJECTID,
@@ -310,6 +312,7 @@ export default function FeatureDrawer({
   const isCommercialBuildings = layerName === 'Sebaran Rumah Komersil';
 
   // Debug logging
+  console.log({
     layerName,
     isCommercialBuildings,
     featureData: featureData ? 'exists' : 'null',

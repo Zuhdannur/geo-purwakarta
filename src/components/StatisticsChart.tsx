@@ -92,6 +92,7 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
             
             // Debug: Log first few admin features
             if (index < 3) {
+              console.log({
                 kecamatan: kecamatanName,
                 properties: feature.properties
               });
@@ -133,6 +134,7 @@ export default function StatisticsChart({ isOpen, onClose }: StatisticsChartProp
             
             // Debug: Log kecamatan detection
             if (index < 3) {
+              console.log({
                 fromProperties: feature.properties?.KECAMATAN || feature.properties?.kecamatan,
                 finalKecamatan: kecamatanName
               });

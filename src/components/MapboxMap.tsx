@@ -1414,6 +1414,7 @@ export default function MapboxMap({
       return null;
     }
 
+    console.log({
       coordinatesLength: coordinates.length,
       firstPolygon: coordinates[0],
       firstPolygonLength: coordinates[0]?.length,
