@@ -20,13 +20,13 @@ export async function GET() {
 
     const geojson = map.geojson as any
     
-    // Extract unique kecamatan values from WADMKC property
+    // Extract unique kecamatan values from nama_kec property
     const kecamatanSet = new Set<string>()
     
     if (geojson.features && Array.isArray(geojson.features)) {
       geojson.features.forEach((feature: any) => {
-        if (feature.properties && feature.properties.WADMKC) {
-          kecamatanSet.add(feature.properties.WADMKC)
+        if (feature.properties && feature.properties.nama_kec) {
+          kecamatanSet.add(feature.properties.nama_kec)
         }
       })
     }

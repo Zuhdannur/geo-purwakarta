@@ -22,19 +22,19 @@ export async function GET(request: NextRequest) {
 
     const geojson = map.geojson as any
     
-    // Extract unique desa values from WADMKD property
+    // Extract unique desa values from nama_desa property
     const desaSet = new Set<string>()
     
     if (geojson.features && Array.isArray(geojson.features)) {
       geojson.features.forEach((feature: any) => {
-        if (feature.properties && feature.properties.WADMKD) {
+        if (feature.properties && feature.properties.nama_desa) {
           // If kecamatan filter is provided, only include desa from that kecamatan
           if (kecamatan) {
-            if (feature.properties.WADMKC === kecamatan) {
-              desaSet.add(feature.properties.WADMKD)
+            if (feature.properties.nama_kec === kecamatan) {
+              desaSet.add(feature.properties.nama_desa)
             }
           } else {
-            desaSet.add(feature.properties.WADMKD)
+            desaSet.add(feature.properties.nama_desa)
           }
         }
       })

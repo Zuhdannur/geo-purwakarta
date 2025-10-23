@@ -33,19 +33,19 @@ export default function HomePage() {
   const [layers, setLayers] = useState<MapLayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
-  
+
   // Filter states
   const [kecamatanOptions, setKecamatanOptions] = useState<ComboboxOption[]>([]);
   const [desaOptions, setDesaOptions] = useState<ComboboxOption[]>([]);
   const [selectedKecamatan, setSelectedKecamatan] = useState<string>('');
   const [selectedDesa, setSelectedDesa] = useState<string>('');
-  
+
   // Hover state
   const hoveredFeatureRef = useRef<{ layerId: string; featureId: any } | null>(null);
-  
+
   // Registered commercial houses state
   const [registeredHouses, setRegisteredHouses] = useState<any>(null);
-  
+
   // Commercial house modal state
   const [commercialHouseModal, setCommercialHouseModal] = useState<{
     isOpen: boolean;
@@ -56,7 +56,7 @@ export default function HomePage() {
     data: null,
     loading: false
   });
-  
+
   // Recap dialog state
   const [recapOpen, setRecapOpen] = useState(false);
   const [recapData, setRecapData] = useState<any[]>([]);
@@ -68,7 +68,7 @@ export default function HomePage() {
       try {
         const response = await fetch('/api/maps/kecamatan');
         const data = await response.json();
-        
+
         const options: ComboboxOption[] = [
           { value: '', label: '-- Select Kecamatan --' },
           ...(data.kecamatan || []).map((k: string) => ({
@@ -76,7 +76,7 @@ export default function HomePage() {
             label: k
           }))
         ];
-        
+
         setKecamatanOptions(options);
       } catch (error) {
         console.error('Error fetching kecamatan:', error);
@@ -98,10 +98,10 @@ export default function HomePage() {
 
       try {
         const url = `/api/maps/desa?kecamatan=${encodeURIComponent(selectedKecamatan)}`;
-        
+
         const response = await fetch(url);
         const data = await response.json();
-        
+
         const options: ComboboxOption[] = [
           { value: '', label: '-- Select Desa --' },
           ...(data.desa || []).map((d: string) => ({
@@ -109,9 +109,9 @@ export default function HomePage() {
             label: d
           }))
         ];
-        
+
         setDesaOptions(options);
-        
+
         // Reset desa selection when kecamatan changes
         setSelectedDesa('');
       } catch (error) {
@@ -131,7 +131,7 @@ export default function HomePage() {
         const response = await fetch('/api/maps');
         const data = await response.json();
         setLayers(data);
-        
+
         // Initialize all layers as visible
         const allLayerIds = data.map((layer: MapLayer) => `map-layer-${layer.id}`);
         setVisibleLayers(new Set(allLayerIds));
@@ -151,7 +151,7 @@ export default function HomePage() {
       try {
         const response = await fetch('/api/commercial-houses?limit=10000');
         const data = await response.json();
-        
+
         // Convert to GeoJSON
         const features = data.data
           .filter((house: any) => house.geometry)
@@ -256,13 +256,13 @@ export default function HomePage() {
 
         // Determine geometry type
         const features = layer.geojson.features || [];
-        const hasPolygons = features.some((f: any) => 
+        const hasPolygons = features.some((f: any) =>
           f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon'
         );
-        const hasLines = features.some((f: any) => 
+        const hasLines = features.some((f: any) =>
           f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString'
         );
-        const hasPoints = features.some((f: any) => 
+        const hasPoints = features.some((f: any) =>
           f.geometry?.type === 'Point' || f.geometry?.type === 'MultiPoint'
         );
 
@@ -364,6 +364,91 @@ export default function HomePage() {
               },
               filter: ['==', ['get', '_featureId'], '']
             });
+          }
+
+          // Add desa label layer for Peta Administrasi
+          if (layer.name === 'Peta Administrasi' && hasPolygons) {
+            const labelSourceId = `map-source-${layer.id}-labels`;
+            const labelLayerId = `map-layer-${layer.id}-labels`;
+
+            // Create label data with center coordinates of each desa
+            const labelData = {
+              type: 'FeatureCollection',
+              features: layer.geojson.features
+                .filter((feature: any) => feature.properties?.nama_desa)
+                .map((feature: any) => {
+                  // Calculate center of polygon
+                  let centerLng = 0;
+                  let centerLat = 0;
+                  let totalPoints = 0;
+
+                  const coordinates = feature.geometry.coordinates;
+                  if (feature.geometry.type === 'Polygon') {
+                    coordinates[0].forEach((coord: number[]) => {
+                      centerLng += coord[0];
+                      centerLat += coord[1];
+                      totalPoints++;
+                    });
+                  } else if (feature.geometry.type === 'MultiPolygon') {
+                    coordinates.forEach((polygon: number[][][]) => {
+                      polygon[0].forEach((coord: number[]) => {
+                        centerLng += coord[0];
+                        centerLat += coord[1];
+                        totalPoints++;
+                      });
+                    });
+                  }
+
+                  if (totalPoints > 0) {
+                    centerLng /= totalPoints;
+                    centerLat /= totalPoints;
+                  }
+
+                  return {
+                    type: 'Feature',
+                    geometry: {
+                      type: 'Point',
+                      coordinates: [centerLng, centerLat]
+                    },
+                    properties: {
+                      NAME: feature.properties.nama_desa
+                    }
+                  };
+                })
+            };
+
+            // Add label source
+            if (!map.current!.getSource(labelSourceId)) {
+              map.current!.addSource(labelSourceId, {
+                type: 'geojson',
+                //@ts-ignore
+                data: labelData
+              });
+            }
+
+            // Add label layer
+            if (!map.current!.getLayer(labelLayerId)) {
+              console.log('labelData', labelLayerId);
+
+              try {
+                map.current!.addLayer({
+                  id: labelLayerId,
+                  type: 'symbol',
+                  source: sourceId,
+                  layout: {
+                    'text-field': ['get', 'nama_desa'],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 15,
+                    'text-offset': [0, 0.5],
+                  },
+                  paint: {
+                    'text-color': '#000000',
+                  },
+                });
+              } catch (e) {
+                console.error('Error adding label layer:', e);
+              }
+            }
           }
         }
 
@@ -502,11 +587,11 @@ export default function HomePage() {
           if (e.features && e.features.length > 0) {
             const feature = e.features[0];
             const properties = feature.properties || {};
-            
+
             // Check if this is the "Sebaran Rumah Komersil" layer
-            const isCommercialLayer = layer.name.toLowerCase().includes('rumah komersil') || 
-                                      layer.name.toLowerCase().includes('sebaran rumah');
-            
+            const isCommercialLayer = layer.name.toLowerCase().includes('rumah komersil') ||
+              layer.name.toLowerCase().includes('sebaran rumah');
+
             if (isCommercialLayer && feature.geometry) {
               // Open modal and fetch commercial house data
               setCommercialHouseModal({
@@ -554,11 +639,11 @@ export default function HomePage() {
               // For other layers, show regular popup with table
               const popupElement = document.createElement('div');
               const root = createRoot(popupElement);
-              
+
               root.render(
-                <PropertyPopup 
-                  layerName={layer.name} 
-                  properties={properties} 
+                <PropertyPopup
+                  layerName={layer.name}
+                  properties={properties}
                 />
               );
 
@@ -612,15 +697,15 @@ export default function HomePage() {
       if (features.length > 0) {
         const feature = features[0];
         if (!feature.layer) return;
-        
+
         const layerId = feature.layer.id;
         const featureId = feature.properties?._featureId || feature.properties?.OBJECTID || feature.properties?.id || feature.id;
 
         // Only update if hovering over a different feature
-        if (!hoveredFeatureRef.current || 
-            hoveredFeatureRef.current.layerId !== layerId || 
-            hoveredFeatureRef.current.featureId !== featureId) {
-          
+        if (!hoveredFeatureRef.current ||
+          hoveredFeatureRef.current.layerId !== layerId ||
+          hoveredFeatureRef.current.featureId !== featureId) {
+
           // Clear previous hover
           clearHover();
 
@@ -692,7 +777,7 @@ export default function HomePage() {
         ring = coordinates[0];
       }
     }
-    
+
     if (!ring || ring.length < 3) return null;
 
     // Calculate centroid using shoelace formula
@@ -703,14 +788,14 @@ export default function HomePage() {
     for (let i = 0; i < ring.length - 1; i++) {
       const coord1 = ring[i];
       const coord2 = ring[i + 1];
-      
+
       const x1 = coord1[0];
       const y1 = coord1[1];
       const x2 = coord2[0];
       const y2 = coord2[1];
-      
-      if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
-          !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+
+      if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) ||
+        !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
         continue;
       }
 
@@ -724,7 +809,7 @@ export default function HomePage() {
       area /= 2;
       centroidX /= (6 * area);
       centroidY /= (6 * area);
-      
+
       return [centroidX, centroidY];
     }
 
@@ -736,7 +821,7 @@ export default function HomePage() {
       if (Array.isArray(coord) && coord.length >= 2) {
         const x = coord[0];
         const y = coord[1];
-        
+
         if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
           minX = Math.min(minX, x);
           maxX = Math.max(maxX, x);
@@ -750,7 +835,7 @@ export default function HomePage() {
     if (validCoords > 0 && isFinite(minX) && isFinite(maxX) && isFinite(minY) && isFinite(maxY)) {
       const centerX = minX + (maxX - minX) / 2;
       const centerY = minY + (maxY - minY) / 2;
-      
+
       if (!isNaN(centerX) && !isNaN(centerY) && isFinite(centerX) && isFinite(centerY)) {
         return [centerX, centerY];
       }
@@ -843,7 +928,7 @@ export default function HomePage() {
             const namaPerumahan = feature.properties.namaPerumahan || '';
             // Show developer name prominently
             const combinedLabel = namaPerumahan ? `${namaPengembangan}\n${namaPerumahan}` : namaPengembangan;
-            
+
             return {
               type: 'Feature',
               geometry: {
@@ -941,11 +1026,11 @@ export default function HomePage() {
       // Add hover handlers
       map.current.on('mouseenter', layerId, (e) => {
         map.current!.getCanvas().style.cursor = 'pointer';
-        
+
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
           const featureId = feature.properties?._featureId;
-          
+
           if (featureId) {
             map.current!.setFilter(hoverLayerId, ['==', ['get', '_featureId'], featureId]);
             map.current!.setFilter(hoverOutlineLayerId, ['==', ['get', '_featureId'], featureId]);
@@ -982,19 +1067,19 @@ export default function HomePage() {
     if (!mapReady || !map.current) return;
 
     const filter = createFilter();
-    
+
     // Update all layers with new filter
     layers.forEach((layer) => {
       const layerId = `map-layer-${layer.id}`;
       const outlineLayerId = `map-layer-${layer.id}-outline`;
-      
+
       if (map.current!.getLayer(layerId)) {
         map.current!.setFilter(layerId, filter);
       }
       if (map.current!.getLayer(outlineLayerId)) {
         map.current!.setFilter(outlineLayerId, filter);
       }
-      
+
       // Note: Hover layers don't get the geo filter, they use feature ID filter
     });
 
@@ -1027,8 +1112,8 @@ export default function HomePage() {
 
     try {
       // Find administrative layer to zoom to
-      const adminLayer = layers.find(l => 
-        l.name.toLowerCase().includes('administrasi') || 
+      const adminLayer = layers.find(l =>
+        l.name.toLowerCase().includes('administrasi') ||
         l.name.toLowerCase().includes('administrative')
       );
 
@@ -1037,8 +1122,8 @@ export default function HomePage() {
       const features = adminLayer.geojson.features || [];
       const filteredFeatures = features.filter((f: any) => {
         if (selectedDesa) {
-          return f.properties?.WADMKC === selectedKecamatan && 
-                 f.properties?.WADMKD === selectedDesa;
+          return f.properties?.WADMKC === selectedKecamatan &&
+            f.properties?.WADMKD === selectedDesa;
         } else if (selectedKecamatan) {
           return f.properties?.WADMKC === selectedKecamatan;
         }
@@ -1047,7 +1132,7 @@ export default function HomePage() {
 
       if (filteredFeatures.length > 0) {
         const bounds = new mapboxgl.LngLatBounds();
-        
+
         filteredFeatures.forEach((feature: any) => {
           if (feature.geometry) {
             const coords = getCoordinates(feature.geometry);
@@ -1097,11 +1182,11 @@ export default function HomePage() {
       const r = parseInt(hex.slice(0, 2), 16);
       const g = parseInt(hex.slice(2, 4), 16);
       const b = parseInt(hex.slice(4, 6), 16);
-      
+
       const darkerR = Math.max(0, Math.floor(r * (1 - factor)));
       const darkerG = Math.max(0, Math.floor(g * (1 - factor)));
       const darkerB = Math.max(0, Math.floor(b * (1 - factor)));
-      
+
       return `#${darkerR.toString(16).padStart(2, '0')}${darkerG.toString(16).padStart(2, '0')}${darkerB.toString(16).padStart(2, '0')}`;
     }
     return color;
@@ -1116,7 +1201,7 @@ export default function HomePage() {
       } else {
         newSet.add(layerId);
       }
-      
+
       // Update map layer visibility
       if (map.current) {
         const visible = newSet.has(layerId);
@@ -1126,7 +1211,7 @@ export default function HomePage() {
           `${layerId}-hover`,
           `${layerId}-hover-outline`
         ];
-        
+
         layerIds.forEach(id => {
           if (map.current!.getLayer(id)) {
             map.current!.setLayoutProperty(
@@ -1137,7 +1222,7 @@ export default function HomePage() {
           }
         });
       }
-      
+
       return newSet;
     });
   };
@@ -1148,37 +1233,37 @@ export default function HomePage() {
     try {
       const response = await fetch('/api/commercial-houses?limit=10000');
       const data = await response.json();
-      
+
       // Process data: group by kecamatan and year
       const groupedData: { [key: string]: { [year: string]: number } } = {};
-      
+
       data.data.forEach((house: any) => {
         const kecamatan = house.kecamatan || 'Unknown';
         const year = new Date(house.createdAt).getFullYear().toString();
-        
+
         if (!groupedData[kecamatan]) {
           groupedData[kecamatan] = {};
         }
-        
+
         if (!groupedData[kecamatan][year]) {
           groupedData[kecamatan][year] = 0;
         }
-        
+
         groupedData[kecamatan][year]++;
       });
-      
+
       // Convert to chart format
       const chartData: any[] = [];
       const allYears = new Set<string>();
-      
+
       // Collect all years
       Object.values(groupedData).forEach(kecamatanData => {
         Object.keys(kecamatanData).forEach(year => allYears.add(year));
       });
-      
+
       // Sort years
       const sortedYears = Array.from(allYears).sort();
-      
+
       // Build chart data
       sortedYears.forEach(year => {
         const dataPoint: any = { year };
@@ -1187,7 +1272,7 @@ export default function HomePage() {
         });
         chartData.push(dataPoint);
       });
-      
+
       setRecapData(chartData);
     } catch (error) {
       console.error('Error fetching recap data:', error);
@@ -1200,7 +1285,7 @@ export default function HomePage() {
     <div className="relative w-full h-screen">
       {/* Map Container */}
       <div ref={mapContainer} className="w-full h-full" />
-      
+
       {/* Commercial House Modal */}
       <CommercialHouseModal
         isOpen={commercialHouseModal.isOpen}
@@ -1208,7 +1293,7 @@ export default function HomePage() {
         data={commercialHouseModal.data}
         loading={commercialHouseModal.loading}
       />
-      
+
       {/* Filters - positioned at top left, above the map */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         {/* Kecamatan Filter */}
@@ -1259,8 +1344,8 @@ export default function HomePage() {
         <div className="bg-white rounded-lg shadow-lg p-3">
           <Dialog open={recapOpen} onOpenChange={setRecapOpen}>
             <DialogTrigger asChild>
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 variant="default"
                 onClick={() => {
                   setRecapOpen(true);
@@ -1274,7 +1359,7 @@ export default function HomePage() {
               <DialogHeader>
                 <DialogTitle>Commercial Houses Recap by Kecamatan & Year</DialogTitle>
               </DialogHeader>
-              
+
               <div className="mt-4">
                 {recapLoading ? (
                   <div className="flex items-center justify-center py-12">
@@ -1289,15 +1374,15 @@ export default function HomePage() {
                           margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis 
-                            dataKey="year" 
+                          <XAxis
+                            dataKey="year"
                             label={{ value: 'Year', position: 'insideBottom', offset: -10 }}
                           />
-                          <YAxis 
+                          <YAxis
                             label={{ value: 'Number of Houses', angle: -90, position: 'insideLeft' }}
                           />
                           <Tooltip />
-                          <Legend 
+                          <Legend
                             wrapperStyle={{ paddingTop: '20px' }}
                             iconType="rect"
                           />
@@ -1305,13 +1390,13 @@ export default function HomePage() {
                             .filter(key => key !== 'year')
                             .map((kecamatan, index) => {
                               const colors = [
-                                '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+                                '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
                                 '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
                               ];
                               return (
-                                <Bar 
-                                  key={kecamatan} 
-                                  dataKey={kecamatan} 
+                                <Bar
+                                  key={kecamatan}
+                                  dataKey={kecamatan}
                                   fill={colors[index % colors.length]}
                                   name={kecamatan}
                                 />
@@ -1321,7 +1406,7 @@ export default function HomePage() {
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
-                    
+
                     {/* Summary Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                       <div className="bg-blue-50 p-4 rounded-lg">
@@ -1334,21 +1419,21 @@ export default function HomePage() {
                           }, 0)}
                         </div>
                       </div>
-                      
+
                       <div className="bg-green-50 p-4 rounded-lg">
                         <div className="text-sm text-green-600 font-medium">Kecamatan Count</div>
                         <div className="text-2xl font-bold text-green-700">
                           {recapData.length > 0 ? Object.keys(recapData[0]).filter(key => key !== 'year').length : 0}
                         </div>
                       </div>
-                      
+
                       <div className="bg-purple-50 p-4 rounded-lg">
                         <div className="text-sm text-purple-600 font-medium">Year Range</div>
                         <div className="text-2xl font-bold text-purple-700">
                           {recapData.length > 0 ? `${recapData[0].year} - ${recapData[recapData.length - 1].year}` : '-'}
                         </div>
                       </div>
-                      
+
                       <div className="bg-orange-50 p-4 rounded-lg">
                         <div className="text-sm text-orange-600 font-medium">Data Points</div>
                         <div className="text-2xl font-bold text-orange-700">
@@ -1393,7 +1478,7 @@ export default function HomePage() {
                 return (
                   <div key={layer.id} className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div 
+                      <div
                         className="w-4 h-4 rounded border flex-shrink-0"
                         style={{ backgroundColor: layer.color || '#3388ff' }}
                       />
@@ -1409,11 +1494,11 @@ export default function HomePage() {
                   </div>
                 );
               })}
-              
+
               {/* Show registered houses layer if available */}
               {registeredHouses && registeredHouses.features.length > 0 && (
                 <div className="flex items-center gap-2 border-t pt-3 mt-2">
-                  <div 
+                  <div
                     className="w-4 h-4 rounded border-2 border-green-600 flex-shrink-0"
                     style={{ backgroundColor: '#2ecc71', opacity: 0.9 }}
                   />

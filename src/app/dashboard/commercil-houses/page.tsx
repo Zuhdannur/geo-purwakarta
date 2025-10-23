@@ -499,14 +499,20 @@ export default function CommercialHousesPage() {
       const data = await response.json();
       setMapData(data);
       
-      // Auto-select all layers
-      const allLayerIds = data.map((map: MapData) => {
-        return `layer-${map.name.toLowerCase().replace(/\s+/g, '-')}`;
-      });
-      setSelectedLayers(allLayerIds);
+      // Auto-select only "Sebaran Rumah Komersil" layer
+      const filteredLayerIds = data
+        .filter((map: MapData) => 
+          map.name.toLowerCase().includes('sebaran') && 
+          map.name.toLowerCase().includes('rumah') && 
+          map.name.toLowerCase().includes('komersil')
+        )
+        .map((map: MapData) => {
+          return `layer-${map.name.toLowerCase().replace(/\s+/g, '-')}`;
+        });
+      setSelectedLayers(filteredLayerIds);
       
-      // Initialize all layers as visible
-      setVisibleLayers(new Set(allLayerIds));
+      // Initialize only filtered layers as visible
+      setVisibleLayers(new Set(filteredLayerIds));
     } catch (err: any) {
       console.error('Error loading map data:', err);
       setMapError(err?.message || 'Failed to load map data');
@@ -1117,9 +1123,15 @@ export default function CommercialHousesPage() {
   useEffect(() => {
     if (currentView !== 'map' || !mapReady || !map.current || mapData.length === 0) return;
 
+    // Filter to only show "Sebaran Rumah Komersil" layer
+    const filteredMapData = mapData.filter(mapItem => 
+      mapItem.name.toLowerCase().includes('sebaran') && 
+      mapItem.name.toLowerCase().includes('rumah') && 
+      mapItem.name.toLowerCase().includes('komersil')
+    );
 
-    // Sort map data by sortOrder
-    const sortedMapData = [...mapData].sort((a, b) => a.sortOrder - b.sortOrder);
+    // Sort filtered map data by sortOrder
+    const sortedMapData = [...filteredMapData].sort((a, b) => a.sortOrder - b.sortOrder);
     
     // Load each layer in order
     sortedMapData.forEach((mapItem, index) => {
@@ -1437,36 +1449,42 @@ export default function CommercialHousesPage() {
               <Card className="p-4 bg-white/90 backdrop-blur-sm max-w-xs">
                 <div className="space-y-3">
                   <div className="text-sm font-semibold text-gray-700 mb-3">Map Layers</div>
-                  {mapData.map((mapItem) => {
-                    const layerId = `layer-${mapItem.name.toLowerCase().replace(/\s+/g, '-')}`;
-                    const isVisible = visibleLayers.has(layerId);
-                    
-                    // These layers are always visible (no toggle)
-                    const alwaysVisible = layerId === 'layer-sebaran-rumah-komersil' || layerId === 'layer-peta-administrasi';
-                    
-                    return (
-                      <div key={mapItem.id} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div 
-                            className="w-4 h-4 rounded border flex-shrink-0"
-                            style={{ backgroundColor: mapItem.color || '#ccc' }}
-                          />
-                          <span className={`text-xs truncate ${alwaysVisible ? 'font-medium text-gray-700' : 'text-gray-600'}`}>
-                            {mapItem.name}
-                          </span>
+                  {mapData
+                    .filter(mapItem => 
+                      mapItem.name.toLowerCase().includes('sebaran') && 
+                      mapItem.name.toLowerCase().includes('rumah') && 
+                      mapItem.name.toLowerCase().includes('komersil')
+                    )
+                    .map((mapItem) => {
+                      const layerId = `layer-${mapItem.name.toLowerCase().replace(/\s+/g, '-')}`;
+                      const isVisible = visibleLayers.has(layerId);
+                      
+                      // These layers are always visible (no toggle)
+                      const alwaysVisible = layerId === 'layer-sebaran-rumah-komersil';
+                      
+                      return (
+                        <div key={mapItem.id} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div 
+                              className="w-4 h-4 rounded border flex-shrink-0"
+                              style={{ backgroundColor: mapItem.color || '#ccc' }}
+                            />
+                            <span className={`text-xs truncate ${alwaysVisible ? 'font-medium text-gray-700' : 'text-gray-600'}`}>
+                              {mapItem.name}
+                            </span>
+                          </div>
+                          {!alwaysVisible ? (
+                            <Switch
+                              checked={isVisible}
+                              onCheckedChange={() => toggleLayerVisibility(layerId)}
+                              className="flex-shrink-0"
+                            />
+                          ) : (
+                            <span className="text-[9px] text-gray-400 flex-shrink-0 uppercase tracking-wide">Always On</span>
+                          )}
                         </div>
-                        {!alwaysVisible ? (
-                          <Switch
-                            checked={isVisible}
-                            onCheckedChange={() => toggleLayerVisibility(layerId)}
-                            className="flex-shrink-0"
-                          />
-                        ) : (
-                          <span className="text-[9px] text-gray-400 flex-shrink-0 uppercase tracking-wide">Always On</span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                   
                   {/* Show registered houses layer if available */}
                   {registeredHousesGeoJSON && registeredHousesGeoJSON.features.length > 0 && (
