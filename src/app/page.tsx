@@ -1095,8 +1095,9 @@ export default function HomePage() {
         }
 
         const sourceId = `map-source-${adminLayer.id}`;
-        if (map.current.getSource(sourceId)) {
-          map.current.getSource(sourceId).setData({
+        const source = map.current.getSource(sourceId);
+        if (source && typeof (source as mapboxgl.GeoJSONSource).setData === 'function') {
+          (source as mapboxgl.GeoJSONSource).setData({
             ...adminLayer.geojson,
             features: filteredFeatures
           });
