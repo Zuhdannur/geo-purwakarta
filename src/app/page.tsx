@@ -368,63 +368,8 @@ export default function HomePage() {
 
           // Add desa label layer for Peta Administrasi
           if (layer.name === 'Peta Administrasi' && hasPolygons) {
-            const labelSourceId = `map-source-${layer.id}-labels`;
+            
             const labelLayerId = `map-layer-${layer.id}-labels`;
-
-            // Create label data with center coordinates of each desa
-            const labelData = {
-              type: 'FeatureCollection',
-              features: layer.geojson.features
-                .filter((feature: any) => feature.properties?.nama_desa)
-                .map((feature: any) => {
-                  // Calculate center of polygon
-                  let centerLng = 0;
-                  let centerLat = 0;
-                  let totalPoints = 0;
-
-                  const coordinates = feature.geometry.coordinates;
-                  if (feature.geometry.type === 'Polygon') {
-                    coordinates[0].forEach((coord: number[]) => {
-                      centerLng += coord[0];
-                      centerLat += coord[1];
-                      totalPoints++;
-                    });
-                  } else if (feature.geometry.type === 'MultiPolygon') {
-                    coordinates.forEach((polygon: number[][][]) => {
-                      polygon[0].forEach((coord: number[]) => {
-                        centerLng += coord[0];
-                        centerLat += coord[1];
-                        totalPoints++;
-                      });
-                    });
-                  }
-
-                  if (totalPoints > 0) {
-                    centerLng /= totalPoints;
-                    centerLat /= totalPoints;
-                  }
-
-                  return {
-                    type: 'Feature',
-                    geometry: {
-                      type: 'Point',
-                      coordinates: [centerLng, centerLat]
-                    },
-                    properties: {
-                      NAME: feature.properties.nama_desa
-                    }
-                  };
-                })
-            };
-
-            // Add label source
-            if (!map.current!.getSource(labelSourceId)) {
-              map.current!.addSource(labelSourceId, {
-                type: 'geojson',
-                //@ts-ignore
-                data: labelData
-              });
-            }
 
             // Add label layer
             if (!map.current!.getLayer(labelLayerId)) {
@@ -1122,10 +1067,10 @@ export default function HomePage() {
       const features = adminLayer.geojson.features || [];
       const filteredFeatures = features.filter((f: any) => {
         if (selectedDesa) {
-          return f.properties?.WADMKC === selectedKecamatan &&
-            f.properties?.WADMKD === selectedDesa;
+          return f.properties?.nama_kec === selectedKecamatan &&
+            f.properties?.nama_desa === selectedDesa;
         } else if (selectedKecamatan) {
-          return f.properties?.WADMKC === selectedKecamatan;
+          return f.properties?.nama_kec === selectedKecamatan;
         }
         return true;
       });
@@ -1148,6 +1093,15 @@ export default function HomePage() {
             duration: 1000
           });
         }
+
+        const sourceId = `map-source-${adminLayer.id}`;
+        if (map.current.getSource(sourceId)) {
+          map.current.getSource(sourceId).setData({
+            ...adminLayer.geojson,
+            features: filteredFeatures
+          });
+        }
+
       }
     } catch (error) {
       console.error('Error zooming to filtered area:', error);
@@ -1193,7 +1147,7 @@ export default function HomePage() {
   };
 
   // Toggle layer visibility
-  const toggleLayerVisibility = (layerId: string) => {
+  const toggleLayerVisibility = (layerId: string, name: any, realID: number) => {
     setVisibleLayers(prev => {
       const newSet = new Set(prev);
       if (newSet.has(layerId)) {
@@ -1211,6 +1165,15 @@ export default function HomePage() {
           `${layerId}-hover`,
           `${layerId}-hover-outline`
         ];
+
+        console.log('name', name);
+
+        // Add label layer for Peta Administrasi
+        if (name.toLowerCase().includes('administrasi') || name.toLowerCase().includes('administrative')) {
+
+          const labelLayerId = `map-layer-${realID}-labels`;
+          layerIds.push(labelLayerId);
+        }
 
         layerIds.forEach(id => {
           if (map.current!.getLayer(id)) {
@@ -1488,7 +1451,7 @@ export default function HomePage() {
                     </div>
                     <Switch
                       checked={isVisible}
-                      onCheckedChange={() => toggleLayerVisibility(layerId)}
+                      onCheckedChange={() => toggleLayerVisibility(layerId, layer.name, layer.id)}
                       className="flex-shrink-0"
                     />
                   </div>
