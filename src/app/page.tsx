@@ -40,6 +40,17 @@ export default function HomePage() {
   const [selectedKecamatan, setSelectedKecamatan] = useState<string>('');
   const [selectedDesa, setSelectedDesa] = useState<string>('');
 
+  // Debug mode - can be enabled via environment variable or localStorage
+  const [debugMode, setDebugMode] = useState(false);
+
+  // Initialize debug mode
+  useEffect(() => {
+    const isDebugMode = process.env.NODE_ENV === 'development' || 
+                       localStorage.getItem('map-debug') === 'true' ||
+                       window.location.search.includes('debug=true');
+    setDebugMode(isDebugMode);
+  }, []);
+
   // Hover state
   const hoveredFeatureRef = useRef<{ layerId: string; featureId: any } | null>(null);
 
@@ -1030,7 +1041,10 @@ export default function HomePage() {
 
     // Zoom to filtered area if filters are applied
     if (selectedKecamatan) {
-      zoomToFilteredArea();
+      // Add a small delay to ensure map is fully loaded
+      setTimeout(() => {
+        zoomToFilteredArea();
+      }, 100);
     }
   }, [selectedKecamatan, selectedDesa, mapReady, layers]);
 
@@ -1053,7 +1067,10 @@ export default function HomePage() {
 
   // Zoom to filtered area
   const zoomToFilteredArea = () => {
-    if (!map.current) return;
+    if (!map.current) {
+      console.warn('Map not available for zoomToFilteredArea');
+      return;
+    }
 
     try {
       // Find administrative layer to zoom to
@@ -1062,50 +1079,107 @@ export default function HomePage() {
         l.name.toLowerCase().includes('administrative')
       );
 
-      if (!adminLayer) return;
+      if (!adminLayer) {
+        console.warn('Administrative layer not found for zooming');
+        return;
+      }
+
+      if (!adminLayer.geojson || !adminLayer.geojson.features) {
+        console.warn('Administrative layer has no GeoJSON features');
+        return;
+      }
 
       const features = adminLayer.geojson.features || [];
+      if (debugMode) {
+        console.log(`Found ${features.length} features in administrative layer`);
+      }
+
       const filteredFeatures = features.filter((f: any) => {
+        if (!f.properties) return false;
+
+        // Try multiple property name variations for kecamatan
+        const kecamatanValue = f.properties.nama_kec || f.properties.WADMKC || f.properties.kecamatan;
+        const desaValue = f.properties.nama_desa || f.properties.WADMKD || f.properties.desa || f.properties.kelurahan;
+
+        if (debugMode) {
+          console.log(`Feature properties:`, {
+            nama_kec: f.properties.nama_kec,
+            WADMKC: f.properties.WADMKC,
+            nama_desa: f.properties.nama_desa,
+            WADMKD: f.properties.WADMKD,
+            selectedKecamatan,
+            selectedDesa
+          });
+        }
+
         if (selectedDesa) {
-          return f.properties?.nama_kec === selectedKecamatan &&
-            f.properties?.nama_desa === selectedDesa;
+          return kecamatanValue === selectedKecamatan && desaValue === selectedDesa;
         } else if (selectedKecamatan) {
-          return f.properties?.nama_kec === selectedKecamatan;
+          return kecamatanValue === selectedKecamatan;
         }
         return true;
       });
 
+      if (debugMode) {
+        console.log(`Filtered to ${filteredFeatures.length} features`);
+      }
+
       if (filteredFeatures.length > 0) {
         const bounds = new mapboxgl.LngLatBounds();
+        let validCoordsCount = 0;
 
         filteredFeatures.forEach((feature: any) => {
           if (feature.geometry) {
             const coords = getCoordinates(feature.geometry);
             coords.forEach((coord: [number, number]) => {
-              bounds.extend(coord);
+              if (coord && coord.length === 2 && 
+                  typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+                  !isNaN(coord[0]) && !isNaN(coord[1]) &&
+                  isFinite(coord[0]) && isFinite(coord[1])) {
+                bounds.extend(coord);
+                validCoordsCount++;
+              }
             });
           }
         });
 
+        if (debugMode) {
+          console.log(`Valid coordinates found: ${validCoordsCount}`);
+        }
+
         if (!bounds.isEmpty()) {
+          if (debugMode) {
+            console.log('Fitting bounds to:', bounds.getNorth(), bounds.getSouth(), bounds.getEast(), bounds.getWest());
+          }
           map.current!.fitBounds(bounds, {
             padding: 50,
             duration: 1000
           });
+        } else {
+          if (debugMode) {
+            console.warn('No valid coordinates found for bounds calculation, using fallback zoom');
+          }
+          // Fallback: zoom to a reasonable level around Purwakarta center
+          map.current!.flyTo({
+            center: [107.4439, -6.5569],
+            zoom: 12,
+            duration: 1000
+          });
         }
-
-        // const sourceId = `map-source-${adminLayer.id}`;
-        // const source = map.current.getSource(sourceId);
-        // if (source && typeof (source as mapboxgl.GeoJSONSource).setData === 'function') {
-        //   (source as mapboxgl.GeoJSONSource).setData({
-        //     ...adminLayer.geojson,
-        //     features: filteredFeatures
-        //   });
-        // }
-
+      } else {
+        if (debugMode) {
+          console.warn('No features found matching the selected filters');
+        }
       }
     } catch (error) {
       console.error('Error zooming to filtered area:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        selectedKecamatan,
+        selectedDesa,
+        layersCount: layers.length
+      });
     }
   };
 
@@ -1113,18 +1187,33 @@ export default function HomePage() {
   const getCoordinates = (geometry: any): [number, number][] => {
     const coords: [number, number][] = [];
 
-    const extractCoords = (coord: any) => {
+    if (!geometry || !geometry.coordinates) {
+      console.warn('Invalid geometry provided to getCoordinates');
+      return coords;
+    }
+
+    const extractCoords = (coord: any, depth = 0) => {
+      if (depth > 10) { // Prevent infinite recursion
+        console.warn('Maximum recursion depth reached in coordinate extraction');
+        return;
+      }
+
       if (Array.isArray(coord)) {
-        if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+        if (coord.length >= 2 && 
+            typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+            !isNaN(coord[0]) && !isNaN(coord[1]) &&
+            isFinite(coord[0]) && isFinite(coord[1])) {
           coords.push([coord[0], coord[1]]);
         } else {
-          coord.forEach(extractCoords);
+          coord.forEach((c) => extractCoords(c, depth + 1));
         }
       }
     };
 
-    if (geometry.coordinates) {
+    try {
       extractCoords(geometry.coordinates);
+    } catch (error) {
+      console.error('Error extracting coordinates:', error);
     }
 
     return coords;
@@ -1302,6 +1391,22 @@ export default function HomePage() {
             width={250}
             disabled={!selectedKecamatan}
           />
+        </div>
+
+        {/* Debug Toggle Button */}
+        <div className="bg-white rounded-lg shadow-lg p-3">
+          <Button
+            className="w-full"
+            variant={debugMode ? "default" : "outline"}
+            onClick={() => {
+              const newDebugMode = !debugMode;
+              setDebugMode(newDebugMode);
+              localStorage.setItem('map-debug', newDebugMode.toString());
+              console.log('Debug mode toggled:', newDebugMode);
+            }}
+          >
+            🐛 Debug {debugMode ? 'ON' : 'OFF'}
+          </Button>
         </div>
 
         {/* Recap Button */}
