@@ -1094,14 +1094,14 @@ export default function HomePage() {
           });
         }
 
-        const sourceId = `map-source-${adminLayer.id}`;
-        const source = map.current.getSource(sourceId);
-        if (source && typeof (source as mapboxgl.GeoJSONSource).setData === 'function') {
-          (source as mapboxgl.GeoJSONSource).setData({
-            ...adminLayer.geojson,
-            features: filteredFeatures
-          });
-        }
+        // const sourceId = `map-source-${adminLayer.id}`;
+        // const source = map.current.getSource(sourceId);
+        // if (source && typeof (source as mapboxgl.GeoJSONSource).setData === 'function') {
+        //   (source as mapboxgl.GeoJSONSource).setData({
+        //     ...adminLayer.geojson,
+        //     features: filteredFeatures
+        //   });
+        // }
 
       }
     } catch (error) {
