@@ -40,17 +40,6 @@ export default function HomePage() {
   const [selectedKecamatan, setSelectedKecamatan] = useState<string>('');
   const [selectedDesa, setSelectedDesa] = useState<string>('');
 
-  // Debug mode - can be enabled via environment variable or localStorage
-  const [debugMode, setDebugMode] = useState(false);
-
-  // Initialize debug mode
-  useEffect(() => {
-    const isDebugMode = process.env.NODE_ENV === 'development' || 
-                       localStorage.getItem('map-debug') === 'true' ||
-                       window.location.search.includes('debug=true');
-    setDebugMode(isDebugMode);
-  }, []);
-
   // Hover state
   const hoveredFeatureRef = useRef<{ layerId: string; featureId: any } | null>(null);
 
@@ -1054,11 +1043,11 @@ export default function HomePage() {
 
     // Only apply filters if Kecamatan is selected
     if (selectedKecamatan) {
-      conditions.push(['==', ['get', 'WADMKC'], selectedKecamatan]);
+      conditions.push(['==', ['get', 'nama_kec'], selectedKecamatan]);
 
       // Only apply Desa filter if it's selected (requires Kecamatan to be selected first)
       if (selectedDesa) {
-        conditions.push(['==', ['get', 'WADMKD'], selectedDesa]);
+        conditions.push(['==', ['get', 'nama_desa'], selectedDesa]);
       }
     }
 
@@ -1090,9 +1079,6 @@ export default function HomePage() {
       }
 
       const features = adminLayer.geojson.features || [];
-      if (debugMode) {
-        console.log(`Found ${features.length} features in administrative layer`);
-      }
 
       const filteredFeatures = features.filter((f: any) => {
         if (!f.properties) return false;
@@ -1100,17 +1086,6 @@ export default function HomePage() {
         // Try multiple property name variations for kecamatan
         const kecamatanValue = f.properties.nama_kec || f.properties.WADMKC || f.properties.kecamatan;
         const desaValue = f.properties.nama_desa || f.properties.WADMKD || f.properties.desa || f.properties.kelurahan;
-
-        if (debugMode) {
-          console.log(`Feature properties:`, {
-            nama_kec: f.properties.nama_kec,
-            WADMKC: f.properties.WADMKC,
-            nama_desa: f.properties.nama_desa,
-            WADMKD: f.properties.WADMKD,
-            selectedKecamatan,
-            selectedDesa
-          });
-        }
 
         if (selectedDesa) {
           return kecamatanValue === selectedKecamatan && desaValue === selectedDesa;
@@ -1120,13 +1095,8 @@ export default function HomePage() {
         return true;
       });
 
-      if (debugMode) {
-        console.log(`Filtered to ${filteredFeatures.length} features`);
-      }
-
       if (filteredFeatures.length > 0) {
         const bounds = new mapboxgl.LngLatBounds();
-        let validCoordsCount = 0;
 
         filteredFeatures.forEach((feature: any) => {
           if (feature.geometry) {
@@ -1137,38 +1107,23 @@ export default function HomePage() {
                   !isNaN(coord[0]) && !isNaN(coord[1]) &&
                   isFinite(coord[0]) && isFinite(coord[1])) {
                 bounds.extend(coord);
-                validCoordsCount++;
               }
             });
           }
         });
 
-        if (debugMode) {
-          console.log(`Valid coordinates found: ${validCoordsCount}`);
-        }
-
         if (!bounds.isEmpty()) {
-          if (debugMode) {
-            console.log('Fitting bounds to:', bounds.getNorth(), bounds.getSouth(), bounds.getEast(), bounds.getWest());
-          }
           map.current!.fitBounds(bounds, {
             padding: 50,
             duration: 1000
           });
         } else {
-          if (debugMode) {
-            console.warn('No valid coordinates found for bounds calculation, using fallback zoom');
-          }
           // Fallback: zoom to a reasonable level around Purwakarta center
           map.current!.flyTo({
             center: [107.4439, -6.5569],
             zoom: 12,
             duration: 1000
           });
-        }
-      } else {
-        if (debugMode) {
-          console.warn('No features found matching the selected filters');
         }
       }
     } catch (error) {
@@ -1391,22 +1346,6 @@ export default function HomePage() {
             width={250}
             disabled={!selectedKecamatan}
           />
-        </div>
-
-        {/* Debug Toggle Button */}
-        <div className="bg-white rounded-lg shadow-lg p-3">
-          <Button
-            className="w-full"
-            variant={debugMode ? "default" : "outline"}
-            onClick={() => {
-              const newDebugMode = !debugMode;
-              setDebugMode(newDebugMode);
-              localStorage.setItem('map-debug', newDebugMode.toString());
-              console.log('Debug mode toggled:', newDebugMode);
-            }}
-          >
-            🐛 Debug {debugMode ? 'ON' : 'OFF'}
-          </Button>
         </div>
 
         {/* Recap Button */}
