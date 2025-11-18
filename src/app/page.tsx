@@ -12,7 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+// Temporarily disabled - react-joyride doesn't support React 19 yet
+// import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 
 // Set Mapbox access token
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
@@ -61,6 +65,49 @@ export default function HomePage() {
   const [recapOpen, setRecapOpen] = useState(false);
   const [recapData, setRecapData] = useState<any[]>([]);
   const [recapLoading, setRecapLoading] = useState(false);
+
+  // Welcome dialog state
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [hideWelcome, setHideWelcome] = useState(false);
+
+  // Tour guide state - Temporarily disabled - react-joyride doesn't support React 19 yet
+  // const [runTour, setRunTour] = useState(false);
+  // const [tourSteps] = useState<Step[]>([
+  //   {
+  //     target: '#tour-kecamatan-filter',
+  //     content: 'Filter ini digunakan untuk memilih dan menyaring data berdasarkan Kecamatan tertentu. Pilih Kecamatan untuk melihat data yang lebih spesifik.',
+  //     title: 'Filter Kecamatan',
+  //     placement: 'right',
+  //   },
+  //   {
+  //     target: '#tour-desa-filter',
+  //     content: 'Setelah memilih Kecamatan, Anda dapat memfilter lebih lanjut berdasarkan Desa/Kelurahan. Filter ini akan membantu Anda melihat data pada level yang lebih detail.',
+  //     title: 'Filter Desa/Kelurahan',
+  //     placement: 'right',
+  //   },
+  //   {
+  //     target: '#tour-layer-toggle',
+  //     content: 'Toggle layer ini memungkinkan Anda untuk menampilkan atau menyembunyikan layer peta. Gunakan switch untuk mengontrol visibilitas setiap layer sesuai kebutuhan Anda.',
+  //     title: 'Toggle Layer Visibility',
+  //     placement: 'left',
+  //   },
+  // ]);
+
+  // Check localStorage for welcome dialog on mount
+  useEffect(() => {
+    const welcomeDismissed = localStorage.getItem('purwakarta-welcome-dismissed');
+    if (!welcomeDismissed) {
+      setWelcomeOpen(true);
+    }
+  }, []);
+
+  // Handle tour completion - Temporarily disabled
+  // const handleJoyrideCallback = (data: CallBackProps) => {
+  //   const { status } = data;
+  //   if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+  //     setRunTour(false);
+  //   }
+  // };
 
   // Fetch Kecamatan list
   useEffect(() => {
@@ -697,6 +744,33 @@ export default function HomePage() {
     // Add mousemove listener
     map.current.on('mousemove', handleMouseMove);
 
+    // Set initial visibility based on visibleLayers state (only when layers are first added)
+    layers.forEach((layer) => {
+      const layerId = `map-layer-${layer.id}`;
+      const outlineLayerId = `map-layer-${layer.id}-outline`;
+      const hoverLayerId = `map-layer-${layer.id}-hover`;
+      const hoverOutlineLayerId = `map-layer-${layer.id}-hover-outline`;
+      const labelLayerId = `map-layer-${layer.id}-labels`;
+      
+      const isVisible = visibleLayers.has(layerId);
+      const layerIds = [layerId, outlineLayerId, hoverLayerId, hoverOutlineLayerId];
+      
+      // Add label layer if it exists (for Peta Administrasi)
+      if (map.current!.getLayer(labelLayerId)) {
+        layerIds.push(labelLayerId);
+      }
+      
+      layerIds.forEach(id => {
+        if (map.current!.getLayer(id)) {
+          map.current!.setLayoutProperty(
+            id,
+            'visibility',
+            isVisible ? 'visible' : 'none'
+          );
+        }
+      });
+    });
+
     // Cleanup function
     return () => {
       if (map.current) {
@@ -704,7 +778,7 @@ export default function HomePage() {
       }
     };
 
-  }, [mapReady, layers, selectedKecamatan, selectedDesa]);
+  }, [mapReady, layers]);
 
   // Helper function to get the center of a polygon
   const getPolygonCenter = (coordinates: any): [number, number] | null => {
@@ -1013,16 +1087,19 @@ export default function HomePage() {
 
     const filter = createFilter();
 
-    // Update all layers with new filter
+    // Update only layers that support administrative filtering
     layers.forEach((layer) => {
       const layerId = `map-layer-${layer.id}`;
       const outlineLayerId = `map-layer-${layer.id}-outline`;
+      const shouldApplyFilter =
+        !!selectedKecamatan && layerSupportsAdministrativeFilter(layer);
+      const filterExpression = shouldApplyFilter ? filter : ['all'];
 
       if (map.current!.getLayer(layerId)) {
-        map.current!.setFilter(layerId, filter);
+        map.current!.setFilter(layerId, filterExpression);
       }
       if (map.current!.getLayer(outlineLayerId)) {
-        map.current!.setFilter(outlineLayerId, filter);
+        map.current!.setFilter(outlineLayerId, filterExpression);
       }
 
       // Note: Hover layers don't get the geo filter, they use feature ID filter
@@ -1052,6 +1129,23 @@ export default function HomePage() {
     }
 
     return conditions.length > 1 ? conditions : ['all'];
+  };
+
+  const layerSupportsAdministrativeFilter = (layer: MapLayer) => {
+    if (!layer.geojson?.features?.length) return false;
+
+    return layer.geojson.features.some((feature: any) => {
+      const props = feature.properties || {};
+      return (
+        'nama_kec' in props ||
+        'WADMKC' in props ||
+        'kecamatan' in props ||
+        'nama_desa' in props ||
+        'WADMKD' in props ||
+        'desa' in props ||
+        'kelurahan' in props
+      );
+    });
   };
 
   // Zoom to filtered area
@@ -1235,6 +1329,21 @@ export default function HomePage() {
     });
   };
 
+  // Handle welcome dialog close
+  const handleWelcomeClose = (showTutorial: boolean) => {
+    if (hideWelcome) {
+      localStorage.setItem('purwakarta-welcome-dismissed', 'true');
+    }
+    setWelcomeOpen(false);
+    // Tour functionality temporarily disabled - react-joyride doesn't support React 19 yet
+    // if (showTutorial) {
+    //   // Small delay to ensure elements are rendered
+    //   setTimeout(() => {
+    //     setRunTour(true);
+    //   }, 300);
+    // }
+  };
+
   // Fetch recap data
   const fetchRecapData = async () => {
     setRecapLoading(true);
@@ -1302,10 +1411,76 @@ export default function HomePage() {
         loading={commercialHouseModal.loading}
       />
 
+      {/* Tour Guide - Temporarily disabled - react-joyride doesn't support React 19 yet */}
+      {/* <Joyride
+        steps={tourSteps}
+        run={runTour}
+        continuous={true}
+        showProgress={true}
+        showSkipButton={true}
+        callback={handleJoyrideCallback}
+        styles={{
+          options: {
+            primaryColor: '#3b82f6',
+            zIndex: 10000,
+          },
+        }}
+        locale={{
+          back: 'Kembali',
+          close: 'Tutup',
+          last: 'Selesai',
+          next: 'Lanjut',
+          skip: 'Lewati',
+        }}
+      /> */}
+
+      {/* Welcome Dialog */}
+      <Dialog open={welcomeOpen} onOpenChange={(open: boolean) => !open && handleWelcomeClose(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Welcome to Purwakarta Geo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Selamat datang di Purwakarta Geo! Platform interaktif untuk menjelajahi data geospasial Purwakarta. 
+              Anda dapat menggunakan filter untuk menyaring data berdasarkan Kecamatan dan Desa, serta mengontrol 
+              visibilitas layer peta sesuai kebutuhan.
+            </p>
+            <p className="text-sm text-gray-600">
+              Apakah Anda ingin melihat tutorial singkat tentang cara menggunakan aplikasi ini?
+            </p>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="hide-welcome"
+                checked={hideWelcome}
+                onCheckedChange={(checked) => setHideWelcome(checked as boolean)}
+              />
+              <Label
+                htmlFor="hide-welcome"
+                className="text-sm font-normal cursor-pointer"
+              >
+                Jangan tampilkan lagi
+              </Label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => handleWelcomeClose(false)}
+              >
+                Tidak, terima kasih
+              </Button>
+              <Button onClick={() => handleWelcomeClose(true)}>
+                Ya, tunjukkan tutorial
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Filters - positioned at top left, above the map */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         {/* Kecamatan Filter */}
-        <div className="bg-white rounded-lg shadow-lg p-3">
+        <div id="tour-kecamatan-filter" className="bg-white rounded-lg shadow-lg p-3">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Kecamatan
           </label>
@@ -1327,7 +1502,7 @@ export default function HomePage() {
         </div>
 
         {/* Desa Filter */}
-        <div className={`bg-white rounded-lg shadow-lg p-3 transition-opacity ${!selectedKecamatan ? 'opacity-60' : 'opacity-100'}`}>
+        <div id="tour-desa-filter" className={`bg-white rounded-lg shadow-lg p-3 transition-opacity ${!selectedKecamatan ? 'opacity-60' : 'opacity-100'}`}>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Desa/Kelurahan
             {!selectedKecamatan && (
@@ -1476,7 +1651,7 @@ export default function HomePage() {
       {/* Layer Control */}
       {!loading && layers.length > 0 && (
         <div className="absolute bottom-4 right-4 z-10">
-          <Card className="p-4 bg-white/90 backdrop-blur-sm max-w-xs">
+          <Card id="tour-layer-toggle" className="p-4 bg-white/90 backdrop-blur-sm max-w-xs">
             <div className="space-y-3">
               <div className="text-sm font-semibold text-gray-700 mb-3">Map Layers</div>
               {layers.map((layer) => {

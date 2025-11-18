@@ -167,49 +167,14 @@ export default function StatisticsSection() {
 
   return (
     <div className="w-full overflow-x-auto p-2 md:p-4">
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-2xl">Statistics: Layer Sebaran Rumah Komersil per Kecamatan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600 text-sm">Overview of commercial buildings by district and year.</p>
-        </CardContent>
-      </Card>
-
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-lg text-gray-600">Analyzing spatial data...</div>
         </div>
       ) : (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Chart Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-blue-700 text-sm">
-                This chart displays the count of commercial buildings (Layer Sebaran Rumah Komersil)
-                for each Kecamatan in Purwakarta.
-              </p>
-            </CardContent>
-          </Card>
 
-          <div className="min-w-[720px]">
-            <ChartContainer className="h-96" config={chartConfig}>
-              <BarChart data={chartData} margin={{ top: 10, right: 16, left: 8, bottom: 64 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="kecamatan" angle={-45} textAnchor="end" height={64} interval={0} tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <ChartTooltip content={<ChartTooltipContent />} labelFormatter={(label: string) => `Kecamatan: ${label}`} />
-                <ChartLegend content={<ChartLegendContent />} />
-                {years.map((year) => (
-                  <Bar key={year} dataKey={year} fill={`var(--color-${year})`} name={`Year ${year}`} radius={[4, 4, 0, 0]} />
-                ))}
-              </BarChart>
-            </ChartContainer>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Total Kecamatan</CardTitle>
@@ -248,6 +213,21 @@ export default function StatisticsSection() {
                 </p>
               </CardContent>
             </Card>
+          </div>         
+
+          <div className="min-w-[720px]">
+            <ChartContainer className="h-96" config={chartConfig}>
+              <BarChart data={chartData} margin={{ top: 10, right: 16, left: 8, bottom: 64 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="kecamatan" angle={-45} textAnchor="end" height={64} interval={0} tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <ChartTooltip content={<ChartTooltipContent />} labelFormatter={(label: string) => `Kecamatan: ${label}`} />
+                <ChartLegend content={<ChartLegendContent />} />
+                {years.map((year) => (
+                  <Bar key={year} dataKey={year} fill={`var(--color-${year})`} name={`Year ${year}`} radius={[4, 4, 0, 0]} />
+                ))}
+              </BarChart>
+            </ChartContainer>
           </div>
 
           <Card>
@@ -268,17 +248,6 @@ export default function StatisticsSection() {
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Data Source</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-yellow-700 text-sm">
-                This analysis uses GeoJSON data from the Purwakarta region.
-              </p>
             </CardContent>
           </Card>
         </div>

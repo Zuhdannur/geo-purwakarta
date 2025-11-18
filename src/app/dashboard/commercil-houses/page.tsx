@@ -177,6 +177,7 @@ export default function CommercialHousesPage() {
   const [registeredGeometries, setRegisteredGeometries] = useState<Set<string>>(new Set());
   const [registeredHousesGeoJSON, setRegisteredHousesGeoJSON] = useState<any>(null);
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
+  const layerClickHandlersRef = useRef<Record<string, (e: mapboxgl.MapLayerMouseEvent) => void>>({});
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -559,12 +560,7 @@ export default function CommercialHousesPage() {
           
           // Log details of first few
           if (index < 3) {
-            console.log({
-              id: house.id,
-              kawasan: house.namaPerumahan,
-              hasGeometry: !!house.geometry,
-              geometryType: house.geometry?.type
-            });
+           
           }
         }
       });
@@ -602,6 +598,26 @@ export default function CommercialHousesPage() {
       console.error('Error checking geometry registration:', error);
       return null;
     }
+  }, []);
+
+  const buildHouseDraftFromFeature = useCallback((feature: mapboxgl.MapboxGeoJSONFeature): CommercialHouse => {
+    const props = (feature.properties || {}) as Record<string, any>;
+    const luasHaNumber = Number(props.luas_ha);
+    const hasLuas = !Number.isNaN(luasHaNumber) && Number.isFinite(luasHaNumber);
+    const luasText = hasLuas ? `Luas: ${luasHaNumber.toFixed(2)} ha` : '';
+
+    return {
+      id: '',
+      foto: [],
+      createdAt: '',
+      updatedAt: '',
+      namaPerumahan: props.perumahan ?? '',
+      kecamatan: props.kecamatan ?? '',
+      kelurahanDesa: props.desa ?? '',
+      namaPengembangan: props.keterangan ?? '',
+      dataLainnya: luasText,
+      geometry: feature.geometry
+    };
   }, []);
 
   // Helper to get the center of a polygon
@@ -891,6 +907,10 @@ export default function CommercialHousesPage() {
       return;
     }
 
+    const isRegisteredLayer = layerId === 'layer-registered-houses';
+    const isSebaranLayer = layerId.includes('layer-sebaran-rumah-komersil');
+
+
     try {
       
       // Add source
@@ -918,12 +938,12 @@ export default function CommercialHousesPage() {
       }
 
       // Add fill layer
-      if (!map.current.getLayer(`${layerId}-fill`)) {
+      if (!map.current.getLayer(`${layerId}`)) {
         // Use higher opacity for registered houses to make them stand out
-        const fillOpacity = layerId === 'layer-registered-houses' ? 0.6 : 0.3;
+        const fillOpacity = isRegisteredLayer ? 0.6 : 0.3;
         
         map.current.addLayer({
-          id: `${layerId}-fill`,
+          id: `${layerId}`,
           type: 'fill',
           source: layerId,
           paint: {
@@ -931,12 +951,13 @@ export default function CommercialHousesPage() {
             'fill-opacity': fillOpacity
           }
         });
+
       }
 
       // Add outline layer
       if (!map.current.getLayer(`${layerId}-outline`)) {
         // Use thicker outline for registered houses
-        const lineWidth = layerId === 'layer-registered-houses' ? 2 : 1;
+        const lineWidth = isRegisteredLayer ? 2 : 1;
         
         map.current.addLayer({
           id: `${layerId}-outline`,
@@ -978,7 +999,7 @@ export default function CommercialHousesPage() {
       }
 
       // Add labels for commercial buildings layer
-      if (layerId === 'layer-sebaran-rumah-komersil' || layerId === 'layer-registered-houses') {
+      if (isSebaranLayer || isRegisteredLayer) {
         addCommercialBuildingLabels(layerId, geojsonData);
       }
 
@@ -987,81 +1008,153 @@ export default function CommercialHousesPage() {
         addAdministrativeLabels(layerId, geojsonData);
       }
 
-      // Set up click events (skip for administrative layer)
-      if (layerId !== 'layer-peta-administrasi') {
-        map.current.on('click', `${layerId}-fill`, async (e) => {
-          if (e.features && e.features.length > 0) {
-            const feature = e.features[0];
-            const featureId = feature.properties?.OBJECTID;
-            
-            if (featureId) {
-              // Highlight the clicked feature
-              map.current!.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
-              map.current!.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
-              
-              
-              // If it's the registered houses layer, open in edit mode directly
-              if (layerId === 'layer-registered-houses') {
-                const houseId = feature.properties?.id;
-                if (houseId) {
-                  // Fetch the full house data
-                  const house = commercialHouses.find(h => h.id === houseId);
-                  if (house) {
-                    setEditingHouse(house);
-                    setClickedFeatureGeometry(null);
-                    setIsFormOpen(true);
-                  } else {
-                    // If not in current list, fetch it
-                    try {
-                      const response = await fetch(`/api/commercial-houses/${houseId}`);
-                      if (response.ok) {
-                        const houseData = await response.json();
-                        setEditingHouse(houseData);
-                        setClickedFeatureGeometry(null);
-                        setIsFormOpen(true);
-                      }
-                    } catch (error) {
-                      console.error('Error fetching house:', error);
-                    }
-                  }
-                }
-              }
-              
-              // If it's the sebaran rumah komersil layer, check if registered and open form
-              if (layerId === 'layer-sebaran-rumah-komersil') {
-                const existingHouse = await checkGeometryRegistered(feature.geometry);
-                
-                if (existingHouse) {
-                  // Open in edit mode
-                  setEditingHouse(existingHouse);
-                  setClickedFeatureGeometry(null);
-                } else {
-                  // Open in create mode
-                  setClickedFeatureGeometry(feature.geometry);
-                  setEditingHouse(null);
-                }
-                setIsFormOpen(true);
-              }
-            }
-          }
-        });
-      }
+      // Set up click events for interactive housing layers
+      // if (isSebaranLayer || isRegisteredLayer) {
+      //   const handleFeatureClick = async (e: mapboxgl.MapLayerMouseEvent) => {
+      //     let feature = e.features && e.features.length > 0 ? e.features[0] : null;
+
+      //     if (!feature && map.current) {
+      //       const queriedFeatures = map.current.queryRenderedFeatures(e.point, {
+      //         layers: [`${layerId}-fill`],
+      //       });
+      //       feature = queriedFeatures.length > 0 ? queriedFeatures[0] : null;
+      //     }
+
+      //     if (!feature) {
+      //       return;
+      //     }
+
+      //     const featureId = feature.properties?.OBJECTID;
+
+      //     if (!featureId) {
+      //       return;
+      //     }
+
+      //     map.current!.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
+      //     map.current!.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
+
+      //     if (isRegisteredLayer) {
+      //       const houseId = feature.properties?.id;
+      //       if (!houseId) {
+      //         return;
+      //       }
+
+      //       const localHouse = commercialHouses.find(h => h.id === houseId);
+      //       if (localHouse) {
+      //         setEditingHouse(localHouse);
+      //         setClickedFeatureGeometry(null);
+      //         setIsFormOpen(true);
+      //         return;
+      //       }
+
+      //       try {
+      //         const response = await fetch(`/api/commercial-houses/${houseId}`);
+      //         if (response.ok) {
+      //           const houseData = await response.json();
+      //           setEditingHouse(houseData);
+      //           setClickedFeatureGeometry(null);
+      //           setIsFormOpen(true);
+      //         }
+      //       } catch (error) {
+      //         console.error('Error fetching house:', error);
+      //       }
+
+      //       return;
+      //     }
+
+      //     // Sebaran Rumah Komersil layer
+      //     const existingHouse = await checkGeometryRegistered(feature.geometry);
+
+      //     if (existingHouse) {
+      //       setEditingHouse(existingHouse);
+      //       setClickedFeatureGeometry(null);
+      //     } else {
+      //       const draftHouse = buildHouseDraftFromFeature(feature as mapboxgl.MapboxGeoJSONFeature);
+      //       setEditingHouse(draftHouse);
+      //       setClickedFeatureGeometry(feature.geometry);
+      //     }
+
+      //     setIsFormOpen(true);
+      //   };
+
+      //   const existingHandler = layerClickHandlersRef.current[layerId];
+      //   if (existingHandler) {
+      //     map.current.off('click', `${layerId}-fill`, existingHandler);
+      //   }
+
+      //   layerClickHandlersRef.current[layerId] = handleFeatureClick;
+      //   map.current.on('click', `${layerId}-fill`, handleFeatureClick);
+      // }
 
       // Add hover effects (skip for administrative layer)
       if (layerId !== 'layer-peta-administrasi') {
-        map.current.on('mouseenter', `${layerId}-fill`, () => {
+        map.current.on('mouseenter', `${layerId}`, () => {
           map.current!.getCanvas().style.cursor = 'pointer';
         });
 
-        map.current.on('mouseleave', `${layerId}-fill`, () => {
+        map.current.on('mouseleave', `${layerId}`, () => {
           map.current!.getCanvas().style.cursor = '';
         });
+      }
+
+      if (layerId === 'layer-sebaran-rumah-komersil') {
+        const fillLayerId = `${layerId}`;
+
+        const handleCommercialLayerClick = async (e: mapboxgl.MapLayerMouseEvent) => {
+          if (!map.current) return;
+
+          let feature = e.features?.[0];
+          if (!feature) {
+            const queriedFeatures = map.current.queryRenderedFeatures(e.point, {
+              layers: [fillLayerId],
+            });
+            feature = queriedFeatures[0];
+          }
+
+          if (!feature) return;
+
+          const featureId = feature.properties?.OBJECTID ?? feature.id;
+
+          if (featureId) {
+            if (map.current.getLayer(`${layerId}-highlighted`)) {
+              map.current.setFilter(`${layerId}-highlighted`, ['==', 'OBJECTID', featureId]);
+            }
+            if (map.current.getLayer(`${layerId}-highlighted-outline`)) {
+              map.current.setFilter(`${layerId}-highlighted-outline`, ['==', 'OBJECTID', featureId]);
+            }
+          }
+
+          try {
+            const existingHouse = await checkGeometryRegistered(feature.geometry);
+
+            if (existingHouse) {
+              setEditingHouse(existingHouse);
+              setClickedFeatureGeometry(null);
+            } else {
+              const draftHouse = buildHouseDraftFromFeature(feature as mapboxgl.MapboxGeoJSONFeature);
+              setEditingHouse(draftHouse);
+              setClickedFeatureGeometry(feature.geometry);
+            }
+
+            setIsFormOpen(true);
+          } catch (err) {
+            console.error('Error handling commercial layer click:', err);
+          }
+        };
+
+        const existingHandler = layerClickHandlersRef.current[layerId];
+        if (existingHandler && map.current) {
+          map.current.off('click', fillLayerId, existingHandler);
+        }
+
+        layerClickHandlersRef.current[layerId] = handleCommercialLayerClick;
+        map.current?.on('click', fillLayerId, handleCommercialLayerClick);
       }
 
     } catch (error) {
       console.error(`Error loading layer ${layerId}:`, error);
     }
-  }, [addCommercialBuildingLabels, addAdministrativeLabels, registeredGeometries, checkGeometryRegistered]);
+  }, [addCommercialBuildingLabels, addAdministrativeLabels, registeredGeometries, checkGeometryRegistered, buildHouseDraftFromFeature, commercialHouses]);
 
   const toggleBaseMap = () => {
     setShowBaseMap(!showBaseMap);

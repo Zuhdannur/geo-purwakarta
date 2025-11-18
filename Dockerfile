@@ -1,29 +1,27 @@
-# Use the official Node.js 18 image as the base image
-FROM node:18-alpine AS base
+# syntax=docker/dockerfile:1.4
+
+# Use the official Node.js 18 image as the base image for linux/amd64
+FROM --platform=linux/amd64 node:18-alpine AS base
 
 # Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+FROM --platform=linux/amd64 base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine 
+# to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
-FROM base AS builder
+FROM --platform=linux/amd64 base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED 1
-
 # Generate Prisma client before building
-RUN npx prisma generate
+RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Compile the seed script to JavaScript
 RUN npx tsc prisma/seed.ts --outDir prisma --target es2022 --module commonjs --moduleResolution node --esModuleInterop --resolveJsonModule --skipLibCheck
@@ -31,22 +29,17 @@ RUN npx tsc prisma/seed.ts --outDir prisma --target es2022 --module commonjs --m
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM base AS runner
+FROM --platform=linux/amd64 base AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy public folder (must be after standalone copy)
 COPY --from=builder /app/public ./public
 
 # Create uploads directory with proper permissions
@@ -59,23 +52,18 @@ RUN chown nextjs:nodejs .next
 # Copy Prisma schema, migrations, seed, and client for runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Create node_modules directory and copy necessary packages for Prisma and seeding
+# Copy only necessary node_modules for Prisma and bcryptjs
 RUN mkdir -p node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
-
-# Copy package.json for Prisma seed command
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 USER nextjs
 
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-ENV PORT 3000
-# set hostname to localhost
-ENV HOSTNAME "0.0.0.0"
-
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
+# server.js is created by Next.js standalone build output
 CMD ["node", "server.js"]

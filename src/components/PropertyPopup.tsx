@@ -15,6 +15,9 @@ interface PropertyPopupProps {
 }
 
 export default function PropertyPopup({ layerName, properties }: PropertyPopupProps) {
+  // Define the priority order for specific properties
+  const priorityOrder = ['nama_kec', 'nama_desa', 'Luas_ha', 'warna'];
+  
   // Filter out geometry and internal properties
   const filteredProperties = Object.entries(properties).filter(
     ([key, value]) => 
@@ -25,7 +28,28 @@ export default function PropertyPopup({ layerName, properties }: PropertyPopupPr
       value !== ''
   );
 
-  if (filteredProperties.length === 0) {
+  // Sort properties: priority properties first, then others
+  const sortedProperties = [...filteredProperties].sort(([keyA], [keyB]) => {
+    const indexA = priorityOrder.indexOf(keyA);
+    const indexB = priorityOrder.indexOf(keyB);
+    
+    // If both are in priority order, sort by their index
+    if (indexA !== -1 && indexB !== -1) {
+      return indexA - indexB;
+    }
+    // If only A is in priority order, A comes first
+    if (indexA !== -1) {
+      return -1;
+    }
+    // If only B is in priority order, B comes first
+    if (indexB !== -1) {
+      return 1;
+    }
+    // If neither is in priority order, maintain original order
+    return 0;
+  });
+
+  if (sortedProperties.length === 0) {
     return (
       <Card className="w-72 bg-card border border-border shadow-lg">
         <CardHeader className="px-3">
@@ -53,7 +77,7 @@ export default function PropertyPopup({ layerName, properties }: PropertyPopupPr
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProperties.map(([key, value]) => (
+              {sortedProperties.map(([key, value]) => (
                 <TableRow key={key} className="border-b border-border/50">
                   <TableCell className="text-xs font-medium py-1.5 px-2 text-muted-foreground bg-muted/20">
                     {formatPropertyName(key)}

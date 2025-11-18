@@ -24,6 +24,7 @@ services:
 
   # Next.js Application
   app:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
