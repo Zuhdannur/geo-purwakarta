@@ -9,7 +9,6 @@ export async function GET() {
         id: true, 
         name: true, 
         geojsonPath: true, 
-        geojson: true, 
         color: true, 
         warna: true, 
         sortOrder: true, 
@@ -22,18 +21,15 @@ export async function GET() {
     // Fetch GeoJSON from MinIO for each map that has a geojsonPath
     const mapsWithGeojson = await Promise.all(
       maps.map(async (map) => {
-        let geojson = map.geojson;
+        let geojson = null;
         
-        // If geojsonPath exists, fetch from MinIO
+        // Fetch from MinIO if geojsonPath exists
         if (map.geojsonPath) {
           try {
             geojson = await getFileAsJson(map.geojsonPath);
           } catch (error) {
             console.error(`Failed to fetch GeoJSON from MinIO for map ${map.id}:`, error);
-            // Fallback to stored geojson if available
-            if (!geojson) {
-              geojson = null;
-            }
+            geojson = null;
           }
         }
 
@@ -118,7 +114,6 @@ export async function POST(req: NextRequest) {
       data: { 
         name, 
         geojsonPath: filePath,
-        geojson: geojson, // Keep for backward compatibility
         sortOrder: nextSortOrder,
         color,
         ...(warna && { warna })

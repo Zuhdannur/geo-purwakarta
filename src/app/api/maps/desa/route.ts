@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Peta Administrasi not found' }, { status: 404 })
     }
 
-    // Fetch GeoJSON from MinIO if geojsonPath exists, otherwise fallback to stored geojson
+    // Fetch GeoJSON from MinIO
     let geojson: any;
 
     console.log('map.geojsonPath', map.geojsonPath);
@@ -27,23 +27,13 @@ export async function GET(request: NextRequest) {
         geojson = await getFileAsJson(map.geojsonPath);
       } catch (error) {
         console.error(`Failed to fetch GeoJSON from MinIO for Peta Administrasi:`, error);
-        // Fallback to stored geojson if available
-        if (map.geojson) {
-          geojson = map.geojson as any;
-        } else {
-          return NextResponse.json({
-            error: 'Failed to fetch GeoJSON from storage',
-            details: error instanceof Error ? error.message : 'Unknown error'
-          }, { status: 500 });
-        }
+        return NextResponse.json({
+          error: 'Failed to fetch GeoJSON from storage',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
       }
     } else {
-      // Use stored geojson if no geojsonPath
-      if (map.geojson) {
-        geojson = map.geojson as any;
-      } else {
-        return NextResponse.json({ error: 'GeoJSON data not found' }, { status: 404 });
-      }
+      return NextResponse.json({ error: 'GeoJSON path not configured' }, { status: 404 });
     }
     
     // Extract unique desa values from nama_desa property

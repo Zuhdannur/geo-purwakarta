@@ -13,7 +13,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         id: true, 
         name: true, 
         geojsonPath: true, 
-        geojson: true, 
         color: true, 
         warna: true, 
         createdAt: true, 
@@ -25,17 +24,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!map) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
     // Fetch GeoJSON from MinIO if geojsonPath exists
-    let geojson = map.geojson;
+    let geojson = null;
     if (map.geojsonPath) {
       try {
         geojson = await getFileAsJson(map.geojsonPath);
       } catch (error) {
         console.error(`Failed to fetch GeoJSON from MinIO for map ${id}:`, error);
-        // Fallback to stored geojson if available
-        if (!geojson) {
-          return NextResponse.json({ error: 'GeoJSON file not found in storage' }, { status: 404 })
-        }
+        return NextResponse.json({ error: 'GeoJSON file not found in storage' }, { status: 404 })
       }
+    } else {
+      return NextResponse.json({ error: 'GeoJSON path not configured' }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -81,7 +79,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       name = body.name
       color = body.color
       warna = body.warna
-      geojson = body.geojson
     }
 
     const data: any = {}
@@ -141,10 +138,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
 
       data.geojsonPath = filePath
-      data.geojson = geojson // Keep for backward compatibility
-    } else if (geojson !== undefined) {
-      // If geojson is provided directly (backward compatibility)
-      data.geojson = geojson
     }
 
     const updated = await prisma.maps.update({

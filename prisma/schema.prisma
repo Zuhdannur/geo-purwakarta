@@ -28,7 +28,6 @@ model Maps {
   id          Int      @id @default(autoincrement())
   name        String
   geojsonPath String?  // Path to GeoJSON file in MinIO (e.g., "maps/map-123.json")
-  geojson     Json?    // Keep for backward compatibility during migration
   color       String   @default("#3388ff") // Default blue color for map layers
   warna       String?  // Feature-specific color property (optional)
   sortOrder   Int      @default(0)
