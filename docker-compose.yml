@@ -8,12 +8,10 @@ services:
       POSTGRES_DB: map_purwakarta
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app-network
     healthcheck:
@@ -25,9 +23,7 @@ services:
   # Next.js Application
   app:
     platform: linux/amd64
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: zuhdannur/purwakarta-web-app:latest
     container_name: map-purwakarta-app
     restart: unless-stopped
     env_file:
@@ -56,15 +52,6 @@ services:
       - app-network
     volumes:
       - uploads_data:/app/public/uploads
-    command: >
-      sh -c "
-        echo 'Waiting for database...' &&
-        sleep 5 &&
-        npx prisma migrate deploy &&
-        npx prisma generate &&
-        npx prisma db seed &&
-        node server.js
-      "
 
   # Redis (optional, for caching)
   redis:
