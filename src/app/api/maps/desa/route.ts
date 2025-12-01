@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getFileAsJson } from '@/lib/minio'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,9 +11,6 @@ export async function GET(request: NextRequest) {
     const map = await prisma.maps.findFirst({
       where: {
         name: 'Peta Administrasi'
-      },
-      select: {
-        geojson: true
       }
     })
 
@@ -20,7 +18,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Peta Administrasi not found' }, { status: 404 })
     }
 
-    const geojson = map.geojson as any
+    // Fetch GeoJSON from MinIO if geojsonPath exists, otherwise fallback to stored geojson
+    let geojson: any;
+
+    console.log('map.geojsonPath', map.geojsonPath);
+    if (map.geojsonPath) {
+      try {
+        geojson = await getFileAsJson(map.geojsonPath);
+      } catch (error) {
+        console.error(`Failed to fetch GeoJSON from MinIO for Peta Administrasi:`, error);
+        // Fallback to stored geojson if available
+        if (map.geojson) {
+          geojson = map.geojson as any;
+        } else {
+          return NextResponse.json({
+            error: 'Failed to fetch GeoJSON from storage',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }, { status: 500 });
+        }
+      }
+    } else {
+      // Use stored geojson if no geojsonPath
+      if (map.geojson) {
+        geojson = map.geojson as any;
+      } else {
+        return NextResponse.json({ error: 'GeoJSON data not found' }, { status: 404 });
+      }
+    }
     
     // Extract unique desa values from nama_desa property
     const desaSet = new Set<string>()

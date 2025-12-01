@@ -23,7 +23,6 @@ export default function MapsPage() {
   const [color, setColor] = useState('#3388ff');
   const [warna, setWarna] = useState('');
   const [geojsonFile, setGeojsonFile] = useState<File | null>(null);
-  const [currentGeojson, setCurrentGeojson] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -57,7 +56,6 @@ export default function MapsPage() {
     setColor('#3388ff');
     setWarna('');
     setGeojsonFile(null);
-    setCurrentGeojson(null);
     setIsFormOpen(true);
   };
 
@@ -70,7 +68,6 @@ export default function MapsPage() {
       setName(m.name);
       setColor(m.color || '#3388ff');
       setWarna(m.warna || '');
-      setCurrentGeojson(m.geojson ?? {});
       setGeojsonFile(null);
       setIsFormOpen(true);
     } catch (e: any) {
@@ -82,29 +79,54 @@ export default function MapsPage() {
     setBusy(true);
     setError(null);
     try {
-      let parsed: any = null;
-      if (geojsonFile) {
-        const text = await geojsonFile.text();
-        try {
-          parsed = JSON.parse(text);
-        } catch {
-          throw new Error('Invalid JSON file');
-        }
-      }
       if (!isEditing && !geojsonFile) {
         throw new Error('GeoJSON file is required');
       }
+      
+      // Validate file if provided
+      if (geojsonFile) {
+        const text = await geojsonFile.text();
+        try {
+          const parsed = JSON.parse(text);
+          // Validate it's a GeoJSON
+          if (parsed.type !== 'FeatureCollection' && parsed.type !== 'Feature' && parsed.type !== 'GeometryCollection') {
+            throw new Error('Invalid GeoJSON format');
+          }
+        } catch (e: any) {
+          if (e.message === 'Invalid GeoJSON format') {
+            throw e;
+          }
+          throw new Error('Invalid JSON file');
+        }
+      }
+
+      // Use FormData for file uploads
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('color', color);
+      if (warna) formData.append('warna', warna);
+      if (geojsonFile) {
+        formData.append('file', geojsonFile);
+      }
+
       if (isEditing) {
-        const body: any = { name, color };
-        if (warna) body.warna = warna;
-        if (geojsonFile) body.geojson = parsed; else body.geojson = currentGeojson;
-        const res = await fetch(`/api/maps/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!res.ok) throw new Error('Failed to update');
+        const res = await fetch(`/api/maps/${editingId}`, { 
+          method: 'PATCH', 
+          body: formData 
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Failed to update' }));
+          throw new Error(errorData.error || 'Failed to update');
+        }
       } else {
-        const body: any = { name, color, geojson: parsed };
-        if (warna) body.warna = warna;
-        const res = await fetch('/api/maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!res.ok) throw new Error('Failed to create');
+        const res = await fetch('/api/maps', { 
+          method: 'POST', 
+          body: formData 
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Failed to create' }));
+          throw new Error(errorData.error || 'Failed to create');
+        }
       }
       setIsFormOpen(false);
       await load();

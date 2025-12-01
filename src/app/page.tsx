@@ -112,6 +112,7 @@ export default function HomePage() {
   // Fetch Kecamatan list
   useEffect(() => {
     const fetchKecamatan = async () => {
+      console.log('fetchKecamatan');
       try {
         const response = await fetch('/api/maps/kecamatan');
         const data = await response.json();
