@@ -101,19 +101,6 @@ export default function FeatureDrawer({
         kelurahan: String(editableFields.kelurahan || '')
       };
       
-      // Debug: Log the feature identification
-      console.log({
-        featureDataKeys: Object.keys(featureData),
-        feature_id: featureData.feature_id,
-        OBJECTID: featureData.OBJECTID,
-        Id: featureData.Id,
-        id: featureData.id,
-        OID_: featureData.OID_,
-        ID: featureData.ID,
-        selectedFeatureId: featureId,
-        editableFields: processedEditableFields,
-        featureDataSample: featureData
-      });
       
       const dataToSave = {
         featureId: featureId,
@@ -187,20 +174,6 @@ export default function FeatureDrawer({
         kelurahan: String(formData.kelurahan || '')
       };
       
-      // Debug: Log the feature identification
-      console.log({
-        featureDataKeys: Object.keys(featureData),
-        feature_id: featureData.feature_id,
-        OBJECTID: featureData.OBJECTID,
-        Id: featureData.Id,
-        id: featureData.id,
-        OID_: featureData.OID_,
-        ID: featureData.ID,
-        selectedFeatureId: featureId,
-        formData: formData,
-        processedEditableFields: processedEditableFields,
-        featureDataSample: featureData
-      });
       
       const dataToSave = {
         featureId: featureId,
@@ -311,14 +284,7 @@ export default function FeatureDrawer({
 
   const isCommercialBuildings = layerName === 'Sebaran Rumah Komersil';
 
-  // Debug logging
-  console.log({
-    layerName,
-    isCommercialBuildings,
-    featureData: featureData ? 'exists' : 'null',
-    layerNameLength: layerName?.length,
-    layerNameExact: `"${layerName}"`
-  });
+
 
   if (!featureData) return null;
 

@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
     // Fetch GeoJSON from MinIO
     let geojson: any;
 
-    console.log('map.geojsonPath', map.geojsonPath);
     if (map.geojsonPath) {
       try {
         geojson = await getFileAsJson(map.geojsonPath);

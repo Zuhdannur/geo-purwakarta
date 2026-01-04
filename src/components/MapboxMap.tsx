@@ -4,9 +4,10 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import FeatureDrawer from './FeatureDrawer';
+import { MAPBOX_ACCESS_TOKEN } from '@/lib/constants';
 
 // Set Mapbox access token
-mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
+mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
 interface MapboxMapProps {
   activeMenu: string | null;
@@ -1414,13 +1415,6 @@ export default function MapboxMap({
       return null;
     }
 
-    console.log({
-      coordinatesLength: coordinates.length,
-      firstPolygon: coordinates[0],
-      firstPolygonLength: coordinates[0]?.length,
-      firstRing: coordinates[0]?.[0],
-      firstRingLength: coordinates[0]?.[0]?.length
-    });
 
     // Handle different coordinate structures:
     // 1. Polygon: [[[x,y], [x,y], ...]] -> coordinates[0] is the ring

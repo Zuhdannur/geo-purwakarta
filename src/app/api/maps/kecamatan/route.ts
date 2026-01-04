@@ -6,9 +6,11 @@ export async function GET() {
   try {
     // Fetch the map with name "Peta Administrasi"
 
+    const maps = await prisma.maps.findMany();
+
     const map = await prisma.maps.findFirst({
       where: {
-        name: 'Peta Adminsitrasi'
+        name: 'Peta Administrasi'
       }
     })
 

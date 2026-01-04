@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { normalizeCoordinatesToString } from '@/lib/geometry-utils';
 
 // GET - Fetch a single commercial house by ID
 export async function GET(
@@ -69,10 +70,14 @@ export async function PUT(
       );
     }
 
+    // Generate coordinate hash from geometry if provided
+    const coordinateHash = geometry ? normalizeCoordinatesToString(geometry) : null;
+
     const updatedHouse = await prisma.commercialHouse.update({
       where: { id },
       data: {
         idSrk,
+        coordinateHash,
         namaPerumahan,
         alamat,
         kelurahanDesa,

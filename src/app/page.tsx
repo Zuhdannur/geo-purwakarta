@@ -17,9 +17,10 @@ import { Label } from '@/components/ui/label';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 // Temporarily disabled - react-joyride doesn't support React 19 yet
 // import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
+import { MAPBOX_ACCESS_TOKEN } from '@/lib/constants';
 
 // Set Mapbox access token
-mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
+mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
 interface MapLayer {
   id: number;
@@ -65,6 +66,7 @@ export default function HomePage() {
   const [recapOpen, setRecapOpen] = useState(false);
   const [recapData, setRecapData] = useState<any[]>([]);
   const [recapLoading, setRecapLoading] = useState(false);
+  const [areaData, setAreaData] = useState<Array<{ kecamatan: string; luas_ha: number }>>([]);
 
   // Welcome dialog state
   const [welcomeOpen, setWelcomeOpen] = useState(false);
@@ -112,13 +114,13 @@ export default function HomePage() {
   // Fetch Kecamatan list
   useEffect(() => {
     const fetchKecamatan = async () => {
-      console.log('fetchKecamatan');
       try {
         const response = await fetch('/api/maps/kecamatan');
         const data = await response.json();
 
         const options: ComboboxOption[] = [
           { value: '', label: '-- Select Kecamatan --' },
+          { value: 'ALL_KECAMATAN', label: 'All Kecamatan' },
           ...(data.kecamatan || []).map((k: string) => ({
             value: k,
             label: k
@@ -137,7 +139,7 @@ export default function HomePage() {
   // Fetch Desa list based on selected Kecamatan
   useEffect(() => {
     const fetchDesa = async () => {
-      // Only fetch Desa options if a Kecamatan is selected
+      // Only fetch Desa options if a Kecamatan is selected or "All Kecamatan" is selected
       if (!selectedKecamatan) {
         setDesaOptions([{ value: '', label: '-- Select Kecamatan first --' }]);
         setSelectedDesa('');
@@ -145,13 +147,17 @@ export default function HomePage() {
       }
 
       try {
-        const url = `/api/maps/desa?kecamatan=${encodeURIComponent(selectedKecamatan)}`;
+        // If "All Kecamatan" is selected, fetch all desa (don't pass kecamatan parameter)
+        const url = selectedKecamatan === 'ALL_KECAMATAN'
+          ? '/api/maps/desa'
+          : `/api/maps/desa?kecamatan=${encodeURIComponent(selectedKecamatan)}`;
 
         const response = await fetch(url);
         const data = await response.json();
 
         const options: ComboboxOption[] = [
           { value: '', label: '-- Select Desa --' },
+          { value: 'ALL_DESA', label: 'All Desa' },
           ...(data.desa || []).map((d: string) => ({
             value: d,
             label: d
@@ -416,13 +422,11 @@ export default function HomePage() {
 
           // Add desa label layer for Peta Administrasi
           if (layer.name === 'Peta Administrasi' && hasPolygons) {
-            
+
             const labelLayerId = `map-layer-${layer.id}-labels`;
 
             // Add label layer
             if (!map.current!.getLayer(labelLayerId)) {
-              console.log('labelData', labelLayerId);
-
               try {
                 map.current!.addLayer({
                   id: labelLayerId,
@@ -752,15 +756,15 @@ export default function HomePage() {
       const hoverLayerId = `map-layer-${layer.id}-hover`;
       const hoverOutlineLayerId = `map-layer-${layer.id}-hover-outline`;
       const labelLayerId = `map-layer-${layer.id}-labels`;
-      
+
       const isVisible = visibleLayers.has(layerId);
       const layerIds = [layerId, outlineLayerId, hoverLayerId, hoverOutlineLayerId];
-      
+
       // Add label layer if it exists (for Peta Administrasi)
       if (map.current!.getLayer(labelLayerId)) {
         layerIds.push(labelLayerId);
       }
-      
+
       layerIds.forEach(id => {
         if (map.current!.getLayer(id)) {
           map.current!.setLayoutProperty(
@@ -947,7 +951,7 @@ export default function HomePage() {
             const namaPengembangan = feature.properties.namaPengembangan || 'Unknown Developer';
             const namaPerumahan = feature.properties.namaPerumahan || '';
             // Show developer name prominently
-            const combinedLabel = namaPerumahan ? `${namaPengembangan}\n${namaPerumahan}` : namaPengembangan;
+            const combinedLabel = namaPerumahan ? `${namaPerumahan}` : namaPengembangan;
 
             return {
               type: 'Feature',
@@ -957,7 +961,10 @@ export default function HomePage() {
               },
               properties: {
                 label: combinedLabel,
-                featureId: feature.properties.id || feature.properties._featureId
+                featureId: feature.properties.id || feature.properties._featureId,
+                // Include kecamatan and kelurahanDesa for filtering
+                kecamatan: feature.properties.kecamatan,
+                kelurahanDesa: feature.properties.kelurahanDesa
               }
             };
           }
@@ -1092,8 +1099,9 @@ export default function HomePage() {
     layers.forEach((layer) => {
       const layerId = `map-layer-${layer.id}`;
       const outlineLayerId = `map-layer-${layer.id}-outline`;
+      const labelLayerId = `map-layer-${layer.id}-labels`;
       const shouldApplyFilter =
-        !!selectedKecamatan && layerSupportsAdministrativeFilter(layer);
+        !!selectedKecamatan && selectedKecamatan !== 'ALL_KECAMATAN' && layerSupportsAdministrativeFilter(layer);
       const filterExpression = shouldApplyFilter ? filter : ['all'];
 
       if (map.current!.getLayer(layerId)) {
@@ -1102,9 +1110,25 @@ export default function HomePage() {
       if (map.current!.getLayer(outlineLayerId)) {
         map.current!.setFilter(outlineLayerId, filterExpression);
       }
+      // Apply filter to label layer as well
+      if (map.current!.getLayer(labelLayerId)) {
+        map.current!.setFilter(labelLayerId, filterExpression);
+      }
 
       // Note: Hover layers don't get the geo filter, they use feature ID filter
     });
+
+    // Apply filter to registered commercial houses layer
+    if (map.current!.getLayer('registered-houses-layer')) {
+      const commercialHousesFilter = createCommercialHousesFilter();
+      map.current!.setFilter('registered-houses-layer', commercialHousesFilter);
+      map.current!.setFilter('registered-houses-outline', commercialHousesFilter);
+      // Apply filter to registered houses label layer as well
+      if (map.current!.getLayer('registered-houses-labels')) {
+        map.current!.setFilter('registered-houses-labels', commercialHousesFilter);
+      }
+      // Note: Hover layers don't get the geo filter, they use feature ID filter
+    }
 
     // Zoom to filtered area if filters are applied
     if (selectedKecamatan) {
@@ -1113,19 +1137,36 @@ export default function HomePage() {
         zoomToFilteredArea();
       }, 100);
     }
-  }, [selectedKecamatan, selectedDesa, mapReady, layers]);
+  }, [selectedKecamatan, selectedDesa, mapReady, layers, registeredHouses]);
 
   // Create filter expression based on selections
   const createFilter = (): any[] => {
     const conditions: any[] = ['all'];
 
-    // Only apply filters if Kecamatan is selected
-    if (selectedKecamatan) {
+    // Only apply filters if Kecamatan is selected and not "All Kecamatan"
+    if (selectedKecamatan && selectedKecamatan !== 'ALL_KECAMATAN') {
       conditions.push(['==', ['get', 'nama_kec'], selectedKecamatan]);
 
-      // Only apply Desa filter if it's selected (requires Kecamatan to be selected first)
-      if (selectedDesa) {
+      // Only apply Desa filter if it's selected and not "All Desa" (requires Kecamatan to be selected first)
+      if (selectedDesa && selectedDesa !== 'ALL_DESA') {
         conditions.push(['==', ['get', 'nama_desa'], selectedDesa]);
+      }
+    }
+
+    return conditions.length > 1 ? conditions : ['all'];
+  };
+
+  // Create filter expression for commercial houses based on selections
+  const createCommercialHousesFilter = (): any[] => {
+    const conditions: any[] = ['all'];
+
+    // Only apply filters if Kecamatan is selected and not "All Kecamatan"
+    if (selectedKecamatan && selectedKecamatan !== 'ALL_KECAMATAN') {
+      conditions.push(['==', ['get', 'kecamatan'], selectedKecamatan]);
+
+      // Only apply Desa filter if it's selected and not "All Desa" (requires Kecamatan to be selected first)
+      if (selectedDesa && selectedDesa !== 'ALL_DESA') {
+        conditions.push(['==', ['get', 'kelurahanDesa'], selectedDesa]);
       }
     }
 
@@ -1149,6 +1190,18 @@ export default function HomePage() {
     });
   };
 
+  // Helper function to check if a layer has both nama_desa and nama_kec properties
+  const layerHasBothProperties = (layer: MapLayer): boolean => {
+    if (!layer.geojson?.features?.length) return false;
+
+    return layer.geojson.features.some((feature: any) => {
+      const props = feature.properties || {};
+      const hasKecamatan = 'nama_kec' in props || 'WADMKC' in props || 'kecamatan' in props;
+      const hasDesa = 'nama_desa' in props || 'WADMKD' in props || 'desa' in props || 'kelurahan' in props;
+      return hasKecamatan && hasDesa;
+    });
+  };
+
   // Zoom to filtered area
   const zoomToFilteredArea = () => {
     if (!map.current) {
@@ -1157,32 +1210,71 @@ export default function HomePage() {
     }
 
     try {
-      // Find administrative layer to zoom to
-      const adminLayer = layers.find(l =>
-        l.name.toLowerCase().includes('administrasi') ||
-        l.name.toLowerCase().includes('administrative')
-      );
-
-      if (!adminLayer) {
-        console.warn('Administrative layer not found for zooming');
+      // If "All Kecamatan" is selected, zoom out to show all kecamatan
+      if (selectedKecamatan === 'ALL_KECAMATAN') {
+        zoomToAllKecamatan();
         return;
       }
 
-      if (!adminLayer.geojson || !adminLayer.geojson.features) {
-        console.warn('Administrative layer has no GeoJSON features');
+      // Filter layers that are:
+      // 1. Active (visible/toggled on)
+      // 2. Have both nama_desa and nama_kec properties
+      const activeLayersWithProperties = layers.filter((layer) => {
+        const layerId = `map-layer-${layer.id}`;
+        const isVisible = visibleLayers.has(layerId);
+        const hasBothProperties = layerHasBothProperties(layer);
+        return isVisible && hasBothProperties;
+      });
+
+      // Collect all features from all matching layers
+      const allFeatures: any[] = [];
+
+      activeLayersWithProperties.forEach((layer) => {
+        if (layer.geojson?.features) {
+          allFeatures.push(...layer.geojson.features);
+        }
+      });
+
+      // Also include registered commercial houses if they exist and match the filter
+      if (registeredHouses && registeredHouses.features) {
+        const filteredCommercialHouses = registeredHouses.features.filter((f: any) => {
+          if (!f.properties) return false;
+
+          const kecamatanValue = f.properties.kecamatan;
+          const desaValue = f.properties.kelurahanDesa;
+
+          // Handle "All Desa" selection
+          if (selectedDesa === 'ALL_DESA') {
+            return kecamatanValue === selectedKecamatan;
+          } else if (selectedDesa) {
+            return kecamatanValue === selectedKecamatan && desaValue === selectedDesa;
+          } else if (selectedKecamatan) {
+            return kecamatanValue === selectedKecamatan;
+          }
+          return true;
+        });
+
+        allFeatures.push(...filteredCommercialHouses);
+      }
+
+      if (allFeatures.length === 0) {
+        console.warn('No features found in active layers or commercial houses');
         return;
       }
 
-      const features = adminLayer.geojson.features || [];
-
-      const filteredFeatures = features.filter((f: any) => {
+      // Filter features based on selected kecamatan and desa
+      const filteredFeatures = allFeatures.filter((f: any) => {
         if (!f.properties) return false;
 
-        // Try multiple property name variations for kecamatan
+        // For regular map layers, try multiple property name variations
+        // For commercial houses, use kecamatan and kelurahanDesa directly
         const kecamatanValue = f.properties.nama_kec || f.properties.WADMKC || f.properties.kecamatan;
-        const desaValue = f.properties.nama_desa || f.properties.WADMKD || f.properties.desa || f.properties.kelurahan;
+        const desaValue = f.properties.nama_desa || f.properties.WADMKD || f.properties.desa || f.properties.kelurahan || f.properties.kelurahanDesa;
 
-        if (selectedDesa) {
+        // Handle "All Desa" selection
+        if (selectedDesa === 'ALL_DESA') {
+          return kecamatanValue === selectedKecamatan;
+        } else if (selectedDesa) {
           return kecamatanValue === selectedKecamatan && desaValue === selectedDesa;
         } else if (selectedKecamatan) {
           return kecamatanValue === selectedKecamatan;
@@ -1197,11 +1289,42 @@ export default function HomePage() {
           if (feature.geometry) {
             const coords = getCoordinates(feature.geometry);
             coords.forEach((coord: [number, number]) => {
-              if (coord && coord.length === 2 && 
-                  typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
-                  !isNaN(coord[0]) && !isNaN(coord[1]) &&
-                  isFinite(coord[0]) && isFinite(coord[1])) {
-                bounds.extend(coord);
+              if (coord && coord.length === 2 &&
+                typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+                !isNaN(coord[0]) && !isNaN(coord[1]) &&
+                isFinite(coord[0]) && isFinite(coord[1])) {
+
+                let [lng, lat] = coord;
+
+                // Validate ranges: longitude must be -180 to 180, latitude must be -90 to 90
+                const isValidLng = lng >= -180 && lng <= 180;
+                const isValidLat = lat >= -90 && lat <= 90;
+
+                // If coordinates appear to be swapped (lat/lng instead of lng/lat)
+                if (!isValidLng && !isValidLat) {
+                  // Both invalid, skip this coordinate
+                  return;
+                } else if (!isValidLng && isValidLat) {
+                  // First value is valid lat but not valid lng, likely swapped
+                  // Check if second value could be a valid lng
+                  if (lng >= -180 && lng <= 180) {
+                    // Swap coordinates: [lat, lng] -> [lng, lat]
+                    [lng, lat] = [lat, lng];
+                  } else {
+                    // Second value also invalid, skip
+                    return;
+                  }
+                }
+
+                // Final validation: ensure both are in valid ranges
+                if (lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90) {
+                  try {
+                    bounds.extend([lng, lat]);
+                  } catch (error) {
+                    // Skip invalid coordinates that still fail bounds.extend
+                    console.warn('Skipping invalid coordinate:', [lng, lat], error);
+                  }
+                }
               }
             });
           }
@@ -1228,7 +1351,123 @@ export default function HomePage() {
         stack: error instanceof Error ? error.stack : undefined,
         selectedKecamatan,
         selectedDesa,
-        layersCount: layers.length
+        layersCount: layers.length,
+        visibleLayersCount: visibleLayers.size
+      });
+    }
+  };
+
+  // Zoom out to show all kecamatan
+  const zoomToAllKecamatan = () => {
+    if (!map.current) {
+      console.warn('Map not available for zoomToAllKecamatan');
+      return;
+    }
+
+    try {
+      // Filter layers that are:
+      // 1. Active (visible/toggled on)
+      // 2. Have both nama_desa and nama_kec properties
+      const activeLayersWithProperties = layers.filter((layer) => {
+        const layerId = `map-layer-${layer.id}`;
+        const isVisible = visibleLayers.has(layerId);
+        const hasBothProperties = layerHasBothProperties(layer);
+        return isVisible && hasBothProperties;
+      });
+
+      // Collect all features from all matching layers
+      const allFeatures: any[] = [];
+
+      activeLayersWithProperties.forEach((layer) => {
+        if (layer.geojson?.features) {
+          allFeatures.push(...layer.geojson.features);
+        }
+      });
+
+      // Also include all registered commercial houses
+      if (registeredHouses && registeredHouses.features) {
+        allFeatures.push(...registeredHouses.features);
+      }
+
+      if (allFeatures.length === 0) {
+        console.warn('No features found in active layers or commercial houses');
+        // Fallback: zoom to default view
+        map.current!.flyTo({
+          center: [107.4439, -6.5569],
+          zoom: 10,
+          duration: 1000
+        });
+        return;
+      }
+
+      // Calculate bounds for all features
+      const bounds = new mapboxgl.LngLatBounds();
+
+      allFeatures.forEach((feature: any) => {
+        if (feature.geometry) {
+          const coords = getCoordinates(feature.geometry);
+          coords.forEach((coord: [number, number]) => {
+            if (coord && coord.length === 2 &&
+              typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+              !isNaN(coord[0]) && !isNaN(coord[1]) &&
+              isFinite(coord[0]) && isFinite(coord[1])) {
+
+              let [lng, lat] = coord;
+
+              // Validate ranges: longitude must be -180 to 180, latitude must be -90 to 90
+              const isValidLng = lng >= -180 && lng <= 180;
+              const isValidLat = lat >= -90 && lat <= 90;
+
+              // If coordinates appear to be swapped (lat/lng instead of lng/lat)
+              if (!isValidLng && !isValidLat) {
+                // Both invalid, skip this coordinate
+                return;
+              } else if (!isValidLng && isValidLat) {
+                // First value is valid lat but not valid lng, likely swapped
+                // Check if second value could be a valid lng
+                if (lng >= -180 && lng <= 180) {
+                  // Swap coordinates: [lat, lng] -> [lng, lat]
+                  [lng, lat] = [lat, lng];
+                } else {
+                  // Second value also invalid, skip
+                  return;
+                }
+              }
+
+              // Final validation: ensure both are in valid ranges
+              if (lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90) {
+                try {
+                  bounds.extend([lng, lat]);
+                } catch (error) {
+                  // Skip invalid coordinates that still fail bounds.extend
+                  console.warn('Skipping invalid coordinate:', [lng, lat], error);
+                }
+              }
+            }
+          });
+        }
+      });
+
+      if (!bounds.isEmpty()) {
+        map.current!.fitBounds(bounds, {
+          padding: 50,
+          duration: 1000
+        });
+      } else {
+        // Fallback: zoom to default view
+        map.current!.flyTo({
+          center: [107.4439, -6.5569],
+          zoom: 10,
+          duration: 1000
+        });
+      }
+    } catch (error) {
+      console.error('Error zooming to all kecamatan:', error);
+      // Fallback: zoom to default view
+      map.current!.flyTo({
+        center: [107.4439, -6.5569],
+        zoom: 10,
+        duration: 1000
       });
     }
   };
@@ -1249,10 +1488,10 @@ export default function HomePage() {
       }
 
       if (Array.isArray(coord)) {
-        if (coord.length >= 2 && 
-            typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
-            !isNaN(coord[0]) && !isNaN(coord[1]) &&
-            isFinite(coord[0]) && isFinite(coord[1])) {
+        if (coord.length >= 2 &&
+          typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+          !isNaN(coord[0]) && !isNaN(coord[1]) &&
+          isFinite(coord[0]) && isFinite(coord[1])) {
           coords.push([coord[0], coord[1]]);
         } else {
           coord.forEach((c) => extractCoords(c, depth + 1));
@@ -1305,8 +1544,6 @@ export default function HomePage() {
           `${layerId}-hover`,
           `${layerId}-hover-outline`
         ];
-
-        console.log('name', name);
 
         // Add label layer for Peta Administrasi
         if (name.toLowerCase().includes('administrasi') || name.toLowerCase().includes('administrative')) {
@@ -1392,6 +1629,69 @@ export default function HomePage() {
       });
 
       setRecapData(chartData);
+
+      // Calculate area data by kecamatan from map layers and registered houses
+      const areaByKecamatan: { [key: string]: number } = {};
+
+      // Find the map layer with "rumah komersil" or "sebaran rumah" in the name
+      const commercialLayer = layers.find(layer => 
+        layer.name.toLowerCase().includes('rumah komersil') || 
+        layer.name.toLowerCase().includes('sebaran rumah')
+      );
+
+      if (commercialLayer && commercialLayer.geojson?.features) {
+        // Process map layer features
+        commercialLayer.geojson.features.forEach((feature: any) => {
+          const props = feature.properties || {};
+          const luasHa = parseFloat(props.luas_ha || props.Luas_ha || '0');
+          const kecamatan = props.nama_kec || props.nama_kec || 'Unknown';
+
+          if (!isNaN(luasHa) && luasHa > 0) {
+            if (!areaByKecamatan[kecamatan]) {
+              areaByKecamatan[kecamatan] = 0;
+            }
+            areaByKecamatan[kecamatan] += luasHa;
+          }
+        });
+      }
+
+      // Also process registered houses - match them to map layer features by kecamatan
+      if (registeredHouses && registeredHouses.features) {
+        registeredHouses.features.forEach((houseFeature: any) => {
+          const kecamatan = houseFeature.properties?.kecamatan || 'Unknown';
+          
+          // Try to find matching feature in map layer by geometry or kecamatan
+          if (commercialLayer && commercialLayer.geojson?.features) {
+            const matchingFeature = commercialLayer.geojson.features.find((mapFeature: any) => {
+              const mapKecamatan = mapFeature.properties?.kecamatan || mapFeature.properties?.KECAMATAN;
+              return mapKecamatan === kecamatan;
+            });
+
+            if (matchingFeature) {
+              const props = matchingFeature.properties || {};
+              const luasHa = parseFloat(props.luas_ha || props.Luas_ha || '0');
+              
+              if (!isNaN(luasHa) && luasHa > 0) {
+                if (!areaByKecamatan[kecamatan]) {
+                  areaByKecamatan[kecamatan] = 0;
+                }
+                // Only add if not already counted (avoid double counting)
+                // We'll use the map layer data as primary source
+              }
+            }
+          }
+        });
+      }
+
+      // Convert to array format for chart
+      const areaChartData = Object.keys(areaByKecamatan)
+        .map(kecamatan => ({
+          kecamatan,
+          luas_ha: parseFloat(areaByKecamatan[kecamatan].toFixed(2))
+        }))
+        .sort((a, b) => b.luas_ha - a.luas_ha); // Sort by area descending
+
+      setAreaData(areaChartData);
     } catch (error) {
       console.error('Error fetching recap data:', error);
     } finally {
@@ -1443,8 +1743,8 @@ export default function HomePage() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Selamat datang di Purwakarta Geo! Platform interaktif untuk menjelajahi data geospasial Purwakarta. 
-              Anda dapat menggunakan filter untuk menyaring data berdasarkan Kecamatan dan Desa, serta mengontrol 
+              Selamat datang di Purwakarta Geo! Platform interaktif untuk menjelajahi data geospasial Purwakarta.
+              Anda dapat menggunakan filter untuk menyaring data berdasarkan Kecamatan dan Desa, serta mengontrol
               visibilitas layer peta sesuai kebutuhan.
             </p>
             <p className="text-sm text-gray-600">
@@ -1520,7 +1820,7 @@ export default function HomePage() {
             searchPlaceholder="Search Desa..."
             emptyText={!selectedKecamatan ? "Please select a Kecamatan first" : "No Desa found."}
             width={250}
-            disabled={!selectedKecamatan}
+            disabled={!selectedKecamatan || selectedKecamatan === ''}
           />
         </div>
 
@@ -1539,9 +1839,9 @@ export default function HomePage() {
                 📊 Recap
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="min-w-6xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Commercial Houses Recap by Kecamatan & Year</DialogTitle>
+                <DialogTitle>Perumahan Komersil per Kecamatan & Tahun</DialogTitle>
               </DialogHeader>
 
               <div className="mt-4">
@@ -1551,46 +1851,6 @@ export default function HomePage() {
                   </div>
                 ) : recapData.length > 0 ? (
                   <div className="space-y-4">
-                    <div className="h-[400px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={recapData}
-                          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            dataKey="year"
-                            label={{ value: 'Year', position: 'insideBottom', offset: -10 }}
-                          />
-                          <YAxis
-                            label={{ value: 'Number of Houses', angle: -90, position: 'insideLeft' }}
-                          />
-                          <Tooltip />
-                          <Legend
-                            wrapperStyle={{ paddingTop: '20px' }}
-                            iconType="rect"
-                          />
-                          {recapData.length > 0 && Object.keys(recapData[0])
-                            .filter(key => key !== 'year')
-                            .map((kecamatan, index) => {
-                              const colors = [
-                                '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
-                                '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
-                              ];
-                              return (
-                                <Bar
-                                  key={kecamatan}
-                                  dataKey={kecamatan}
-                                  fill={colors[index % colors.length]}
-                                  name={kecamatan}
-                                />
-                              );
-                            })
-                          }
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-
                     {/* Summary Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                       <div className="bg-blue-50 p-4 rounded-lg">
@@ -1625,6 +1885,76 @@ export default function HomePage() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="h-[400px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={recapData}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="year"
+                            label={{ value: 'Year', position: 'insideBottom', offset: -10 }}
+                          />
+                          <YAxis
+                            label={{ value: 'Jumlah Perumahan Komersil', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip />
+                          <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="rect"
+                          />
+                          {recapData.length > 0 && Object.keys(recapData[0])
+                            .filter(key => key !== 'year')
+                            .map((kecamatan, index) => {
+                              const colors = [
+                                '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
+                                '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
+                              ];
+                              return (
+                                <Bar
+                                  key={kecamatan}
+                                  dataKey={kecamatan}
+                                  fill={colors[index % colors.length]}
+                                  name={kecamatan}
+                                />
+                              );
+                            })
+                          }
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Horizontal Bar Chart for Area by Kecamatan */}
+                    {areaData.length > 0 && (
+                      <div className="mt-8">
+                        <h3 className="text-lg font-semibold mb-4">Luas Total per Kecamatan (Hektare)</h3>
+                        <div className="h-[400px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              layout="vertical"
+                              data={areaData}
+                              margin={{ top: 20, right: 80, left: 100, bottom: 20 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis type="number" label={{ value: 'Luas (Hektare)', position: 'insideBottom', offset: -10 }} />
+                              <YAxis 
+                                type="category" 
+                                dataKey="kecamatan" 
+                                width={90}
+                                label={{ value: 'Kecamatan', angle: -90, position: 'insideLeft' }}
+                              />
+                              <Tooltip 
+                                formatter={(value: any) => [`${value} ha`, 'Luas']}
+                                labelFormatter={(label) => `Kecamatan: ${label}`}
+                              />
+                              <Bar dataKey="luas_ha" fill="#10b981" name="Luas (Hektare)" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">

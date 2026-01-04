@@ -10,6 +10,8 @@ export async function POST() {
       success: true, 
       message: 'Logged out successfully' 
     });
+
+    //test
     
   } catch {
     return NextResponse.json({ 

@@ -7,9 +7,10 @@ import { Plus, MapPin, Layers } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { MAPBOX_ACCESS_TOKEN } from '@/lib/constants';
 
 // Set Mapbox access token
-mapboxgl.accessToken = 'pk.eyJ1Ijoic2F3YmVyc2luYXJtYXMiLCJhIjoiY2pzanZwaDFzMHo3djN5b2wwZ3h6dTE4NiJ9.i0GRqgAEzyvbT5h1d2NyUQ';
+mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
 interface MapData {
   id: number;

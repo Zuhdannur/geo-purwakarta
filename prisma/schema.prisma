@@ -38,6 +38,7 @@ model Maps {
 model CommercialHouse {
   id               String   @id @default(uuid())
   idSrk            String?  @map("id_srk")
+  coordinateHash   String?  @map("coordinate_hash")
   namaPerumahan    String?  @map("nama_perumahan")
   alamat           String?
   kelurahanDesa    String?  @map("kelurahan_desa")

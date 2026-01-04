@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1.4
+# Build for linux/amd64 platform (required for production servers)
+# Build command: docker buildx build --platform linux/amd64 -t zuhdannur/purwakarta-web-app:latest .
 
 # Use the official Node.js 18 image as the base image for linux/amd64
 FROM --platform=linux/amd64 node:18-alpine AS base
